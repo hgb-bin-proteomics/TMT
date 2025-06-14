@@ -1,2 +1,7 @@
+[SPECTRONAUT]
+precursor_mass = "FG.Mass"
+precursor_mz = "FG.PrecMz"
+precursor_charge = "FG.Charge"
+
 [MATCHING]
 tolerance = 0.02
