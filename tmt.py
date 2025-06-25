@@ -1,8 +1,17 @@
+#!/usr/bin/env python3
+
+# UNNAMED TMT PROJECT
+# 2025 (c) Micha Johannes Birklbauer
+# https://github.com/michabirklbauer/
+# micha.birklbauer@gmail.com
+
+__version = "0.0.1"
+__date = "2025-06-25"
+
 import tomllib
 import argparse
 import pandas as pd
 
-__version = "0.0.1"
 
 PROTON = 1.007276466812
 TMT = {
