@@ -10,7 +10,9 @@ __date = "2025-06-25"
 
 import tomllib
 import argparse
+import warnings
 import pandas as pd
+from pyteomics import mzml
 
 
 PROTON = 1.007276466812
@@ -59,6 +61,34 @@ def __get_tmt_intensities(spectrum: dict) -> dict:
     return
 
 
+def __get_mass_key(mass: float) -> int:
+    return round(mass * 10000)
+
+
+def __read_spectra(filename: str) -> dict:
+    spectra = dict()
+    duplicates = 0
+    total = 0
+    with mzml.read(filename) as reader:
+        for spectrum in reader:
+            if "precursorList" in spectrum:
+                for precursor in spectrum["precursorList"]["precursor"]:
+                    for ion in precursor["selectedIonList"]["selectedIon"]:
+                        key = __get_mass_key(float(ion["selected ion m/z"]))
+                        s = dict()
+                        s["mz_array"] = spectrum["m/z array"]
+                        s["intensity_array"] = spectrum["intensity array"]
+                        if key in spectra:
+                            duplicates += 1
+                            spectra[key].append(s)
+                        else:
+                            spectra[key] = [s]
+                            total += 1
+    print(f"Found {duplicates} precursors with the same mass!")
+    print(f"Total number of parsed spectra: {total}")
+    return spectra
+
+
 def main(argv=None) -> None:
     parser = argparse.ArgumentParser(
         prog="ProgramName",
@@ -92,4 +122,10 @@ def main(argv=None) -> None:
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __get_settings(args.config)
+    spectra = __read_spectra(args.spectra)
+    df = __annotate_spectronaut_result(args.spectronaut, spectra, settings)
     return
+
+
+if __name__ == "__main__":
+    _ = main()
