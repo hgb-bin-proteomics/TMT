@@ -71,6 +71,7 @@ def __read_spectra(filename: str) -> dict:
     total = 0
     with mzml.read(filename) as reader:
         for spectrum in reader:
+            ms_level = spectrum["ms level"]
             if "precursorList" in spectrum:
                 for precursor in spectrum["precursorList"]["precursor"]:
                     for ion in precursor["selectedIonList"]["selectedIon"]:
@@ -87,6 +88,10 @@ def __read_spectra(filename: str) -> dict:
     print(f"Found {duplicates} precursors with the same mass!")
     print(f"Total number of parsed spectra: {total}")
     return spectra
+
+
+def __annotate_spectronaut_result(spectronaut_filename: str, spectra: dict, settings: dict) -> pd.DataFrame:
+    df = pd.read_csv(filename)
 
 
 def main(argv=None) -> None:
