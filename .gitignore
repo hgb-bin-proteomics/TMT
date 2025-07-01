@@ -1,5 +1,6 @@
 # data
 *.mzml
+*.mgf
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
