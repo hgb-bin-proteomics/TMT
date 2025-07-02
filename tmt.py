@@ -61,31 +61,39 @@ def __get_tmt_intensities(spectrum: dict) -> dict:
     return
 
 
-def __get_mass_key(mass: float) -> int:
-    return round(mass * 10000)
+def __get_key(mass: float) -> int:
+    return int(round(mass * 10000))
 
 
 def __read_spectra(filename: str) -> dict:
     spectra = dict()
-    duplicates = 0
     total = 0
     with mzml.read(filename) as reader:
         for spectrum in reader:
             ms_level = spectrum["ms level"]
+            if "scanList" not in spectrum or "scan" not in spectrum["scanList"] or len(spectrum["scanList"]["scan"]) != 1:
+                raise RuntimeError(f"Can't get retention time for spectrum: {spectrum}")
+            rt_in_min = float(spectrum["scanList"]["scan"][0]["scan start time"])
+            rt_in_sec = rt_in_min * 60.0
             if "precursorList" in spectrum:
                 for precursor in spectrum["precursorList"]["precursor"]:
                     for ion in precursor["selectedIonList"]["selectedIon"]:
-                        key = __get_mass_key(float(ion["selected ion m/z"]))
+                        primary_key = __get_key(float(ion["selected ion m/z"]))
+                        secondary_key = __get_key(rt_in_sec)
                         s = dict()
+                        s["precursor"] = float(ion["selected ion m/z"])
+                        s["rt"] = rt_in_sec
                         s["mz_array"] = spectrum["m/z array"]
                         s["intensity_array"] = spectrum["intensity array"]
-                        if key in spectra:
-                            duplicates += 1
-                            spectra[key].append(s)
+                        if primary_key in spectra:
+                            if secondary_key in spectra[primary_key]:
+                                raise KeyError(f"Spectrum for precursor {s['precursor']} and retention time {s['rt']} already exists!")
+                            else:
+                                spectra[primary_key][secondary_key] = s
+                                total += 1
                         else:
-                            spectra[key] = [s]
+                            spectra[primary_key] = {secondary_key: s}
                             total += 1
-    print(f"Found {duplicates} precursors with the same mass!")
     print(f"Total number of parsed spectra: {total}")
     return spectra
 
