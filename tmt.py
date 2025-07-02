@@ -8,6 +8,7 @@
 import tomllib
 import argparse
 import pandas as pd
+from tqdm import tqdm
 from pyteomics import mzml
 
 from typing import Dict
@@ -189,7 +190,9 @@ def __annotate_spectronaut_result(
 ) -> pd.DataFrame:
     df = pd.read_csv(spectronaut_filename, low_memory=False)
     channels = {key: [] for key in TMT.keys()}
-    for i, row in df.iterrows():
+    for i, row in tqdm(
+        df.iterrows(), total=df.shape[0], desc="Annotating Spectronaut result..."
+    ):
         prec_mz = float(row[settings["precursor_mz"]])
         mz_tol = float(settings["mz_tolerance"])
         rt = float(row[settings["retention_time"]])
