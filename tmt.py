@@ -14,8 +14,8 @@ from typing import Dict
 from typing import Any
 
 
-__version = "0.0.1"
-__date = "2025-06-25"
+__version = "0.0.2"
+__date = "2025-07-02"
 
 F = "20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz5_3ng_1 1.mzML"
 S = "20250613_125208_TT_multi003_mz5_rep1_Birkl_Factory_Report.csv"
@@ -46,7 +46,7 @@ def __get_uncharged_mass_from_exp_mass(mz: float, charge: int) -> float:
     return mz * charge - PROTON * charge
 
 
-def __get_settings(toml: str) -> Dict[str, Any]:
+def __read_settings(toml: str) -> Dict[str, Any]:
     parsed_toml = None
     with open(toml, "rb") as f:
         parsed_toml = tomllib.load(f)
@@ -237,7 +237,7 @@ def main(argv=None) -> pd.DataFrame:
     )
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
-    settings = __get_settings(args.config)
+    settings = __read_settings(args.config)
     spectra = __read_spectra(args.spectra)
     df = __annotate_spectronaut_result(args.spectronaut, spectra, settings)
     df.to_csv(args.spectronaut + "_tmt_quant.csv", index=False)
