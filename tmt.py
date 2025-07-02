@@ -5,15 +5,14 @@
 # https://github.com/michabirklbauer/
 # micha.birklbauer@gmail.com
 
-__version = "0.0.1"
-__date = "2025-06-25"
-
 import tomllib
 import argparse
-import warnings
 import pandas as pd
 from pyteomics import mzml
 
+
+__version = "0.0.1"
+__date = "2025-06-25"
 
 PROTON = 1.007276466812
 TMT = {
@@ -39,7 +38,7 @@ TMT = {
 
 
 def __get_uncharged_mass_from_exp_mass(mz: float, charge: int) -> float:
-    return mz * charge - proton * charge
+    return mz * charge - PROTON * charge
 
 
 def __get_settings(toml: str) -> dict:
@@ -73,7 +72,11 @@ def __read_spectra(filename: str) -> dict:
         for spectrum in reader:
             ms_level = int(spectrum["ms level"])
             spectra = spectra_ms1 if ms_level == 1 else spectra_ms2
-            if "scanList" not in spectrum or "scan" not in spectrum["scanList"] or len(spectrum["scanList"]["scan"]) != 1:
+            if (
+                "scanList" not in spectrum
+                or "scan" not in spectrum["scanList"]
+                or len(spectrum["scanList"]["scan"]) != 1
+            ):
                 raise RuntimeError(f"Can't get retention time for spectrum: {spectrum}")
             rt_in_min = float(spectrum["scanList"]["scan"][0]["scan start time"])
             rt_in_sec = rt_in_min * 60.0
@@ -89,7 +92,9 @@ def __read_spectra(filename: str) -> dict:
                         s["intensity_array"] = spectrum["intensity array"]
                         if primary_key in spectra:
                             if secondary_key in spectra[primary_key]:
-                                raise KeyError(f"Spectrum for precursor {s['precursor']} and retention time {s['rt']} already exists!")
+                                raise KeyError(
+                                    f"Spectrum for precursor {s['precursor']} and retention time {s['rt']} already exists!"
+                                )
                             else:
                                 spectra[primary_key][secondary_key] = s
                                 total += 1
@@ -100,8 +105,10 @@ def __read_spectra(filename: str) -> dict:
     return {"ms1": spectra_ms1, "ms2": spectra_ms2}
 
 
-def __annotate_spectronaut_result(spectronaut_filename: str, spectra: dict, settings: dict) -> pd.DataFrame:
-    df = pd.read_csv(filename)
+def __annotate_spectronaut_result(
+    spectronaut_filename: str, spectra: dict, settings: dict
+) -> pd.DataFrame:
+    df = pd.read_csv(spectronaut_filename)
 
 
 def main(argv=None) -> None:
