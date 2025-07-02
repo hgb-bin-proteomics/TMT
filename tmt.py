@@ -14,6 +14,7 @@ from pyteomics import mzml
 __version = "0.0.1"
 __date = "2025-06-25"
 
+F = "20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz5_3ng_1 1.mzML"
 PROTON = 1.007276466812
 TMT = {
     "TMTpro-126": 126.127726,
@@ -68,10 +69,11 @@ def __read_spectra(filename: str) -> dict:
     spectra_ms1 = dict()
     spectra_ms2 = dict()
     total = 0
+    total_ms1 = 0
+    total_ms2 = 0
     with mzml.read(filename) as reader:
         for spectrum in reader:
             ms_level = int(spectrum["ms level"])
-            spectra = spectra_ms1 if ms_level == 1 else spectra_ms2
             if (
                 "scanList" not in spectrum
                 or "scan" not in spectrum["scanList"]
@@ -80,28 +82,54 @@ def __read_spectra(filename: str) -> dict:
                 raise RuntimeError(f"Can't get retention time for spectrum: {spectrum}")
             rt_in_min = float(spectrum["scanList"]["scan"][0]["scan start time"])
             rt_in_sec = rt_in_min * 60.0
-            if "precursorList" in spectrum:
-                for precursor in spectrum["precursorList"]["precursor"]:
-                    for ion in precursor["selectedIonList"]["selectedIon"]:
-                        primary_key = __get_key(float(ion["selected ion m/z"]))
-                        secondary_key = __get_key(rt_in_sec)
-                        s = dict()
-                        s["precursor"] = float(ion["selected ion m/z"])
-                        s["rt"] = rt_in_sec
-                        s["mz_array"] = spectrum["m/z array"]
-                        s["intensity_array"] = spectrum["intensity array"]
-                        if primary_key in spectra:
-                            if secondary_key in spectra[primary_key]:
-                                raise KeyError(
-                                    f"Spectrum for precursor {s['precursor']} and retention time {s['rt']} already exists!"
-                                )
+            if ms_level == 2:
+                if "precursorList" in spectrum:
+                    for precursor in spectrum["precursorList"]["precursor"]:
+                        for ion in precursor["selectedIonList"]["selectedIon"]:
+                            primary_key = __get_key(float(ion["selected ion m/z"]))
+                            secondary_key = __get_key(rt_in_sec)
+                            s = dict()
+                            s["precursor"] = float(ion["selected ion m/z"])
+                            s["rt"] = rt_in_sec
+                            s["mz_array"] = spectrum["m/z array"]
+                            s["intensity_array"] = spectrum["intensity array"]
+                            if primary_key in spectra_ms2:
+                                if secondary_key in spectra_ms2[primary_key]:
+                                    raise KeyError(
+                                        f"MS2 spectrum for precursor {s['precursor']} and retention time {s['rt']} already exists!"
+                                    )
+                                else:
+                                    spectra_ms2[primary_key][secondary_key] = s
+                                    total += 1
+                                    total_ms2 += 1
                             else:
-                                spectra[primary_key][secondary_key] = s
+                                spectra_ms2[primary_key] = {secondary_key: s}
                                 total += 1
-                        else:
-                            spectra[primary_key] = {secondary_key: s}
-                            total += 1
+                                total_ms2 += 1
+                else:
+                    raise KeyError(f"No precursor for MS2 spectrum found: {spectrum}")
+            elif ms_level == 1:
+                primary_key = __get_key(rt_in_sec)
+                s = dict()
+                s["precursor"] = None
+                s["rt"] = rt_in_sec
+                s["mz_array"] = spectrum["m/z array"]
+                s["intensity_array"] = spectrum["intensity array"]
+                if primary_key in spectra_ms1:
+                    raise KeyError(
+                        f"MS1 spectrum for retention time {s['rt']} already exists!"
+                    )
+                else:
+                    spectra_ms1[primary_key] = s
+                    total += 1
+                    total_ms1 += 1
+            else:
+                raise ValueError(
+                    f"Found spectrum with MS level {ms_level}. Not supported!"
+                )
     print(f"Total number of parsed spectra: {total}")
+    print(f"Number of MS1 spectra: {total_ms1}")
+    print(f"Number of MS2 spectra: {total_ms2}")
     return {"ms1": spectra_ms1, "ms2": spectra_ms2}
 
 
