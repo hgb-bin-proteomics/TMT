@@ -55,6 +55,7 @@ def __read_settings(toml: str) -> Dict[str, Any]:
     if parsed_toml is None:
         raise RuntimeError()
     return {
+        "window_size": parsed_toml["METHOD"]["window"],
         "precursor_mass": parsed_toml["SPECTRONAUT"]["precursor_mass"],
         "precursor_mz": parsed_toml["SPECTRONAUT"]["precursor_mz"],
         "precursor_charge": parsed_toml["SPECTRONAUT"]["precursor_mz"],
@@ -62,6 +63,7 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "retention_time_in_sec": parsed_toml["SPECTRONAUT"]["retention_time_in_sec"],
         "mz_tolerance": parsed_toml["MATCHING"]["mz_tolerance"],
         "rt_tolerance": parsed_toml["MATCHING"]["rt_tolerance"],
+        "threshold": parsed_toml["FILTERING"]["total_intensity_threshold"],
     }
 
 
@@ -142,7 +144,7 @@ def __read_spectra(filename: str) -> Dict[str, Any]:
     return {"ms1": spectra_ms1, "ms2": spectra_ms2}
 
 
-def __get_ms2_spectrum(
+def __get_ms2_spectrum_old(
     precursor_mz: float | int,
     mz_tol: float,
     retention_time: float,
@@ -184,12 +186,25 @@ def __get_ms2_spectrum(
     )
     return {}
 
+def __get_ms2_spectrum(
+    precursor_mz: float | int,
+    mz_tol: float,
+    retention_time: float,
+    rt_tol: float,
+    window_size: float,
+    filter_threshold: float,
+    spectra: Dict[str, Any],
+) -> Dict[str, Any] | None:
+    # todo
+    return
+
 
 def __annotate_spectronaut_result(
     spectronaut_filename: str, spectra: Dict[str, Any], settings: Dict[str, Any]
 ) -> pd.DataFrame:
     df = pd.read_csv(spectronaut_filename, low_memory=False)
     channels = {key: [] for key in TMT.keys()}
+    nr_of_filtered_spectra = 0
     for i, row in tqdm(
         df.iterrows(), total=df.shape[0], desc="Annotating Spectronaut result..."
     ):
@@ -197,14 +212,22 @@ def __annotate_spectronaut_result(
         mz_tol = float(settings["mz_tolerance"])
         rt = float(row[settings["retention_time"]])
         rt_tol = float(settings["rt_tolerance"])
+        window_size = float(settings["window_size"]) / 2.0
+        filter_threshold = float(settings["threshold"])
         if not settings["retention_time_in_sec"]:
             rt = rt * 60.0
-        spectrum = __get_ms2_spectrum(prec_mz, mz_tol, rt, rt_tol, spectra)
-        tmt_quants = __get_tmt_intensities(spectrum)
-        for key in channels.keys():
-            channels[key].append(tmt_quants[key])
+        spectrum = __get_ms2_spectrum(prec_mz, mz_tol, rt, rt_tol, window_size, filter_threshold, spectra)
+        if spectrum is not None:
+            tmt_quants = __get_tmt_intensities(spectrum)
+            for key in channels.keys():
+                channels[key].append(tmt_quants[key])
+        else:
+            for key in channels.keys():
+                channels[key].append(None)
+            nr_of_filtered_spectra += 1
     for key in channels.keys():
         df[key] = channels[key]
+    print(f"Total number of identifications with MS1 spectra below threshold: {nr_of_filtered_spectra}")
     return df
 
 
