@@ -10,6 +10,9 @@ import argparse
 import pandas as pd
 from pyteomics import mzml
 
+from typing import Dict
+from typing import Any
+
 
 __version = "0.0.1"
 __date = "2025-06-25"
@@ -42,7 +45,7 @@ def __get_uncharged_mass_from_exp_mass(mz: float, charge: int) -> float:
     return mz * charge - PROTON * charge
 
 
-def __get_settings(toml: str) -> dict:
+def __get_settings(toml: str) -> Dict[str, Any]:
     parsed_toml = None
     with open(toml, "rb") as f:
         parsed_toml = tomllib.load(f)
@@ -53,7 +56,10 @@ def __get_settings(toml: str) -> dict:
         "precursor_mass": parsed_toml["SPECTRONAUT"]["precursor_mass"],
         "precursor_mz": parsed_toml["SPECTRONAUT"]["precursor_mz"],
         "precursor_charge": parsed_toml["SPECTRONAUT"]["precursor_mz"],
-        "tolerance": parsed_toml["MATCHING"]["tolerance"],
+        "retention_time": parsed_toml["SPECTRONAUT"]["retention_time"],
+        "retention_time_in_sec": parsed_toml["SPECTRONAUT"]["retention_time_in_sec"],
+        "mz_tolerance": parsed_toml["MATCHING"]["mz_tolerance"],
+        "rt_tolerance": parsed_toml["MATCHING"]["rt_tolerance"],
     }
 
 
