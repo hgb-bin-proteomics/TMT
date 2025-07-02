@@ -66,11 +66,13 @@ def __get_key(mass: float) -> int:
 
 
 def __read_spectra(filename: str) -> dict:
-    spectra = dict()
+    spectra_ms1 = dict()
+    spectra_ms2 = dict()
     total = 0
     with mzml.read(filename) as reader:
         for spectrum in reader:
-            ms_level = spectrum["ms level"]
+            ms_level = int(spectrum["ms level"])
+            spectra = spectra_ms1 if ms_level == 1 else spectra_ms2
             if "scanList" not in spectrum or "scan" not in spectrum["scanList"] or len(spectrum["scanList"]["scan"]) != 1:
                 raise RuntimeError(f"Can't get retention time for spectrum: {spectrum}")
             rt_in_min = float(spectrum["scanList"]["scan"][0]["scan start time"])
@@ -95,7 +97,7 @@ def __read_spectra(filename: str) -> dict:
                             spectra[primary_key] = {secondary_key: s}
                             total += 1
     print(f"Total number of parsed spectra: {total}")
-    return spectra
+    return {"ms1": spectra_ms1, "ms2": spectra_ms2}
 
 
 def __annotate_spectronaut_result(spectronaut_filename: str, spectra: dict, settings: dict) -> pd.DataFrame:
