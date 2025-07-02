@@ -18,6 +18,7 @@ __version = "0.0.1"
 __date = "2025-06-25"
 
 F = "20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz5_3ng_1 1.mzML"
+S = "20250613_125208_TT_multi003_mz5_rep1_Birkl_Factory_Report.csv"
 PROTON = 1.007276466812
 TMT = {
     "TMTpro-126": 126.127726,
@@ -63,15 +64,16 @@ def __get_settings(toml: str) -> Dict[str, Any]:
     }
 
 
-def __get_tmt_intensities(spectrum: dict) -> dict:
-    return
+def __get_tmt_intensities(spectrum: Dict[str, Any]) -> Dict[str, float]:
+    tmt_quants = {key: 0.0 for key in TMT.keys()}
+    return tmt_quants
 
 
 def __get_key(mass: float) -> int:
     return int(round(mass * 10000))
 
 
-def __read_spectra(filename: str) -> dict:
+def __read_spectra(filename: str) -> Dict[str, Any]:
     spectra_ms1 = dict()
     spectra_ms2 = dict()
     total = 0
@@ -139,17 +141,75 @@ def __read_spectra(filename: str) -> dict:
     return {"ms1": spectra_ms1, "ms2": spectra_ms2}
 
 
+def __get_ms2_spectrum(
+    precursor_mz: float | int,
+    mz_tol: float,
+    retention_time: float,
+    rt_tol: float,
+    spectra: Dict[str, Any],
+) -> Dict[str, Any]:
+    spectra_ms2 = spectra["ms2"]
+    primary_key = (
+        __get_key(precursor_mz) if isinstance(precursor_mz, float) else precursor_mz
+    )
+    secondary_key = __get_key(retention_time)
+    mz_range = __get_key(mz_tol)
+    rt_range = __get_key(rt_tol)
+    if primary_key in spectra_ms2:
+        if secondary_key in spectra_ms2[primary_key]:
+            return spectra_ms2[primary_key][secondary_key]
+        else:
+            for i in range(rt_range):
+                key_small = secondary_key - i
+                key_great = secondary_key + i
+                if key_small in spectra_ms2[primary_key]:
+                    return spectra_ms2[primary_key][key_small]
+                if key_great in spectra_ms2[primary_key]:
+                    return spectra_ms2[primary_key][key_great]
+    else:
+        for i in range(mz_range):
+            mz_key_small = int(primary_key - i)
+            mz_key_great = int(primary_key + i)
+            if mz_key_small in spectra_ms2:
+                return __get_ms2_spectrum(
+                    mz_key_small, mz_tol, retention_time, rt_tol, spectra
+                )
+            if mz_key_great in spectra_ms2:
+                return __get_ms2_spectrum(
+                    mz_key_great, mz_tol, retention_time, rt_tol, spectra
+                )
+    raise RuntimeError(
+        f"Could not find matching spectrum for precursor m/z {precursor_mz} and retention time {retention_time}!"
+    )
+    return {}
+
+
 def __annotate_spectronaut_result(
-    spectronaut_filename: str, spectra: dict, settings: dict
+    spectronaut_filename: str, spectra: Dict[str, Any], settings: Dict[str, Any]
 ) -> pd.DataFrame:
-    df = pd.read_csv(spectronaut_filename)
+    df = pd.read_csv(spectronaut_filename, low_memory=False)
+    channels = {key: [] for key in TMT.keys()}
+    for i, row in df.iterrows():
+        prec_mz = float(row[settings["precursor_mz"]])
+        mz_tol = float(settings["mz_tolerance"])
+        rt = float(row[settings["retention_time"]])
+        rt_tol = float(settings["rt_tolerance"])
+        if not settings["retention_time_in_sec"]:
+            rt = rt * 60.0
+        spectrum = __get_ms2_spectrum(prec_mz, mz_tol, rt, rt_tol, spectra)
+        tmt_quants = __get_tmt_intensities(spectrum)
+        for key in channels.keys():
+            channels[key].append(tmt_quants[key])
+    for key in channels.keys():
+        df[key] = channels[key]
+    return df
 
 
-def main(argv=None) -> None:
+def main(argv=None) -> pd.DataFrame:
     parser = argparse.ArgumentParser(
-        prog="ProgramName",
-        description="What the program does",
-        epilog="Text at the bottom of help",
+        prog="TMT",
+        description="TMT",
+        epilog="Bottom Text",
     )
     parser.add_argument(
         "-i",
@@ -180,7 +240,8 @@ def main(argv=None) -> None:
     settings = __get_settings(args.config)
     spectra = __read_spectra(args.spectra)
     df = __annotate_spectronaut_result(args.spectronaut, spectra, settings)
-    return
+    df.to_csv(args.spectronaut + "_tmt_quant.csv", index=False)
+    return df
 
 
 if __name__ == "__main__":
