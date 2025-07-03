@@ -63,6 +63,7 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "retention_time_in_sec": parsed_toml["SPECTRONAUT"]["retention_time_in_sec"],
         "mz_tolerance": parsed_toml["MATCHING"]["mz_tolerance"],
         "rt_tolerance": parsed_toml["MATCHING"]["rt_tolerance"],
+        "rt_window": parsed_toml["MATCHING"]["ms1_rt_window"],
         "threshold": parsed_toml["FILTERING"]["total_intensity_threshold"],
     }
 
