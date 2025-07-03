@@ -145,49 +145,6 @@ def __read_spectra(filename: str) -> Dict[str, Any]:
     return {"ms1": spectra_ms1, "ms2": spectra_ms2}
 
 
-def __get_ms2_spectrum_old(
-    precursor_mz: float | int,
-    mz_tol: float,
-    retention_time: float,
-    rt_tol: float,
-    spectra: Dict[str, Any],
-) -> Dict[str, Any]:
-    spectra_ms2 = spectra["ms2"]
-    primary_key = (
-        __get_key(precursor_mz) if isinstance(precursor_mz, float) else precursor_mz
-    )
-    secondary_key = __get_key(retention_time)
-    mz_range = __get_key(mz_tol)
-    rt_range = __get_key(rt_tol)
-    if primary_key in spectra_ms2:
-        if secondary_key in spectra_ms2[primary_key]:
-            return spectra_ms2[primary_key][secondary_key]
-        else:
-            for i in range(rt_range):
-                key_small = secondary_key - i
-                key_great = secondary_key + i
-                if key_small in spectra_ms2[primary_key]:
-                    return spectra_ms2[primary_key][key_small]
-                if key_great in spectra_ms2[primary_key]:
-                    return spectra_ms2[primary_key][key_great]
-    else:
-        for i in range(mz_range):
-            mz_key_small = int(primary_key - i)
-            mz_key_great = int(primary_key + i)
-            if mz_key_small in spectra_ms2:
-                return __get_ms2_spectrum(
-                    mz_key_small, mz_tol, retention_time, rt_tol, spectra
-                )
-            if mz_key_great in spectra_ms2:
-                return __get_ms2_spectrum(
-                    mz_key_great, mz_tol, retention_time, rt_tol, spectra
-                )
-    raise RuntimeError(
-        f"Could not find matching spectrum for precursor m/z {precursor_mz} and retention time {retention_time}!"
-    )
-    return {}
-
-
 def __check_mz_in_ms1(
     precursor_mz: float, spectrum: Dict[str, Any], mz_tol: float
 ) -> bool:
