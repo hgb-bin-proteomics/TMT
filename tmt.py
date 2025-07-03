@@ -162,7 +162,7 @@ def __get_ms2_spectrum(
     filter_threshold: float,
     spectra: Dict[str, Any],
 ) -> Dict[str, Any] | None:
-    # todo
+    # get by most similar precursor m/z within window
     primary_key_base = __get_key(precursor_mz)
     primary_key_window = __get_key(window_size_unidirectional)
     precursor = None
@@ -177,6 +177,7 @@ def __get_ms2_spectrum(
         raise RuntimeError(
             f"Could not find a suitable precursor for precursor m/z {precursor_mz} and retention time {retention_time}."
         )
+    # get by most similar retention time using a retention time tolerance
     secondary_key_base = __get_key(retention_time)
     secondary_key_window = __get_key(rt_tol)
     spectrum = None
@@ -191,6 +192,7 @@ def __get_ms2_spectrum(
         raise RuntimeError(
             f"Could not find a suitable retention time for precursor m/z {precursor_mz} and retention time {retention_time}."
         )
+    # look for closest MS1 spectrum that has precursor (with m/z tolerance) within ms1 rt window
     retention_time_ms1_window_range = __get_key(retention_time_ms1_window)
     ms1 = None
     for i in range(retention_time_ms1_window_range):
@@ -211,7 +213,9 @@ def __get_ms2_spectrum(
             f"Could not find a suitable MS1 spectrum for precursor m/z {precursor_mz} and retention time {retention_time}."
         )
     # intensity filter
-    return
+    if __check_precursor_intensity_ms1(precursor_mz, ms1, mz_tol, filter_threshold):
+        return spectrum
+    return None
 
 
 def __annotate_spectronaut_result(
