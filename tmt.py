@@ -241,6 +241,7 @@ def __annotate_spectronaut_result(
         mz_tol = float(settings["mz_tolerance"])
         rt = float(row[settings["retention_time"]])
         rt_tol = float(settings["rt_tolerance"])
+        rt_window = float(setting["rt_window"])
         window_size_unidirectional = float(settings["window_size"]) / 2.0
         filter_threshold = float(settings["threshold"])
         if not settings["retention_time_in_sec"]:
@@ -250,6 +251,7 @@ def __annotate_spectronaut_result(
             mz_tol,
             rt,
             rt_tol,
+            rt_window,
             window_size_unidirectional,
             filter_threshold,
             spectra,
