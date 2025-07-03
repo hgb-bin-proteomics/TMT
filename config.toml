@@ -1,19 +1,31 @@
 [METHOD]
+# window size
 window_size = 5.0
+# window start (m/z)
 window_start = 400.0
+# window end (m/z)
 window_end = 800.0
 
 [SPECTRONAUT]
+# column name containing uncharged precursor mass in the Spectronaut result file
 precursor_mass = "FG.Mass"
+# column name containing experimental precursor m/z in the Spectronaut result file
 precursor_mz = "FG.PrecMz"
+# column name containing experimental precursor charge in the Spectronaut result file
 precursor_charge = "FG.Charge"
+# column name containing precursor retention time in the Spectronaut result file
 retention_time = "EG.ApexRT"
+# if the retention time is given in seconds
 retention_time_in_sec = false
 
 [MATCHING]
+# m/z tolerance for matching peaks in Dalton
 mz_tolerance = 0.02
-rt_tolerance = 0.01
-ms1_rt_window = 10
+# retention time tolerance to retrieve matching spectra in seconds
+rt_tolerance = 3.0
+# retention time window that a MS1 and corresponding MS2 spectrum must be in
+ms1_rt_window = 10.0
 
 [FILTERING]
+# precursor intensity fraction in the window to be considered for quantification
 total_intensity_threshold = 0.7
