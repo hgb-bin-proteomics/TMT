@@ -12,6 +12,8 @@ from tqdm import tqdm
 from pyteomics import mzml
 
 from typing import Dict
+from typing import List
+from typing import Tuple
 from typing import Any
 
 
@@ -55,7 +57,9 @@ def __read_settings(toml: str) -> Dict[str, Any]:
     if parsed_toml is None:
         raise RuntimeError()
     return {
-        "window_size": parsed_toml["METHOD"]["window"],
+        "window_size": parsed_toml["METHOD"]["window_size"],
+        "window_start": parsed_toml["METHOD"]["window_start"],
+        "window_end": parsed_toml["METHOD"]["window_end"],
         "precursor_mass": parsed_toml["SPECTRONAUT"]["precursor_mass"],
         "precursor_mz": parsed_toml["SPECTRONAUT"]["precursor_mz"],
         "precursor_charge": parsed_toml["SPECTRONAUT"]["precursor_mz"],
@@ -172,6 +176,7 @@ def __check_precursor_intensity_ms1(
             if precursor_intensity is None:
                 precursor_intensity = spectrum["intensity_array"][i]
             else:
+                # todo clarify behaviour
                 raise RuntimeError(
                     f"Found ambiguous precursors in MS1 spectrum for precursor m/z {precursor_mz} using MS1 spectrum at retention time {spectrum['rt']}."
                 )
@@ -244,6 +249,21 @@ def __get_ms2_spectrum(
     if __check_precursor_intensity_ms1(precursor_mz, ms1, mz_tol, filter_threshold):
         return spectrum
     return None
+
+
+def __get_windows(
+    window_start: float, window_end: float, window_size: float
+) -> List[Tuple[float, float]]:
+    windows = list()
+    current_window_start = window_start
+    while current_window_start < window_end:
+        current_window_end = current_window_start + window_size
+        if current_window_end > window_end:
+            windows.append((current_window_start, window_end))
+            break
+        windows.append((current_window_start, current_window_end))
+        current_window_start += window_size
+    return windows
 
 
 def __annotate_spectronaut_result(

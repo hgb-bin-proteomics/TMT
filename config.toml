@@ -1,5 +1,7 @@
 [METHOD]
-window = 5.0
+window_size = 5.0
+window_start = 400.0
+window_end = 800.0
 
 [SPECTRONAUT]
 precursor_mass = "FG.Mass"
