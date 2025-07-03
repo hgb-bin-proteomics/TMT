@@ -152,6 +152,16 @@ def __check_mz_in_ms1(
     return False
 
 
+def __check_precursor_intensity_ms1(
+    precursor_mz: float,
+    spectrum: Dict[str, Any],
+    mz_tol: float,
+    filter_threshold: float,
+) -> bool:
+    # todo
+    return False
+
+
 def __get_ms2_spectrum(
     precursor_mz: float | int,
     mz_tol: float,
