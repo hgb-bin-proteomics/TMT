@@ -145,10 +145,16 @@ def __read_spectra(filename: str) -> Dict[str, Any]:
     return {"ms1": spectra_ms1, "ms2": spectra_ms2}
 
 
+def __within_tolerance(value: float, ref: float, tol: float) -> bool:
+    return (value > ref - tol) and (value < ref + tol)
+
+
 def __check_mz_in_ms1(
     precursor_mz: float, spectrum: Dict[str, Any], mz_tol: float
 ) -> bool:
-    # todo
+    for mz in spectrum["mz_array"]:
+        if __within_tolerance(mz, precursor_mz, mz_tol):
+            return True
     return False
 
 
@@ -158,8 +164,20 @@ def __check_precursor_intensity_ms1(
     mz_tol: float,
     filter_threshold: float,
 ) -> bool:
-    # todo
-    return False
+    total_intensity = 0.0
+    precursor_intensity = None
+    for i in range(len(spectrum["mz_array"])):
+        total_intensity += spectrum["intensity_array"][i]
+        if __within_tolerance(spectrum["mz_array"][i], precursor_mz, mz_tol):
+            if precursor_intensity is None:
+                precursor_intensity = spectrum["intensity_array"][i]
+            else:
+                raise RuntimeError(
+                    f"Found ambiguous precursors in MS1 spectrum for precursor m/z {precursor_mz} using MS1 spectrum at retention time {spectrum['rt']}."
+                )
+    if precursor_intensity is None:
+        raise RuntimeError("Could not find precursor in MS1 spectrum.")
+    return precursor_intensity / total_intensity > filter_threshold
 
 
 def __get_ms2_spectrum(
