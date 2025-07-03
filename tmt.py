@@ -167,22 +167,39 @@ def __check_precursor_intensity_ms1(
     spectrum: Dict[str, Any],
     mz_tol: float,
     filter_threshold: float,
+    windows: List[Tuple[float, float]],
 ) -> bool:
-    total_intensity = 0.0
+    precursor_index = None
     precursor_intensity = None
     for i in range(len(spectrum["mz_array"])):
-        total_intensity += spectrum["intensity_array"][i]
         if __within_tolerance(spectrum["mz_array"][i], precursor_mz, mz_tol):
-            if precursor_intensity is None:
+            if precursor_index is None:
+                precursor_index = i
                 precursor_intensity = spectrum["intensity_array"][i]
             else:
                 # todo clarify behaviour
                 raise RuntimeError(
                     f"Found ambiguous precursors in MS1 spectrum for precursor m/z {precursor_mz} using MS1 spectrum at retention time {spectrum['rt']}."
                 )
-    if precursor_intensity is None:
+    if precursor_index is None or precursor_intensity is None:
         raise RuntimeError("Could not find precursor in MS1 spectrum.")
-    return precursor_intensity / total_intensity > filter_threshold
+    matching_window = None
+    for window in windows:
+        if precursor_mz > window[0] and precursor_mz < window[1]:
+            matching_window = window
+            break
+    if matching_window is None:
+        raise RuntimeError(
+            f"Could not find matching window for precursor m/z {precursor_mz}!"
+        )
+    total_intensity_in_window = 0.0
+    for i in range(len(spectrum["mz_array"])):
+        if (
+            spectrum["mz_array"][i] > matching_window[0]
+            and spectrum["mz_array"][i] < matching_window[1]
+        ):
+            total_intensity_in_window += spectrum["intensity_array"][i]
+    return precursor_intensity / total_intensity_in_window > filter_threshold
 
 
 def __get_ms2_spectrum(
@@ -194,6 +211,7 @@ def __get_ms2_spectrum(
     window_size_unidirectional: float,
     filter_threshold: float,
     spectra: Dict[str, Any],
+    windows: List[Tuple[float, float]],
 ) -> Dict[str, Any] | None:
     # get by most similar precursor m/z within window
     primary_key_base = __get_key(precursor_mz)
@@ -246,7 +264,9 @@ def __get_ms2_spectrum(
             f"Could not find a suitable MS1 spectrum for precursor m/z {precursor_mz} and retention time {retention_time}."
         )
     # intensity filter
-    if __check_precursor_intensity_ms1(precursor_mz, ms1, mz_tol, filter_threshold):
+    if __check_precursor_intensity_ms1(
+        precursor_mz, ms1, mz_tol, filter_threshold, windows
+    ):
         return spectrum
     return None
 
@@ -282,6 +302,11 @@ def __annotate_spectronaut_result(
         rt_window = float(settings["rt_window"])
         window_size_unidirectional = float(settings["window_size"]) / 2.0
         filter_threshold = float(settings["threshold"])
+        windows = __get_windows(
+            float(settings["window_start"]),
+            float(settings["window_end"]),
+            float(settings["window_size"]),
+        )
         if not settings["retention_time_in_sec"]:
             rt = rt * 60.0
         spectrum = __get_ms2_spectrum(
@@ -293,6 +318,7 @@ def __annotate_spectronaut_result(
             window_size_unidirectional,
             filter_threshold,
             spectra,
+            windows,
         )
         if spectrum is not None:
             tmt_quants = __get_tmt_intensities(spectrum)
