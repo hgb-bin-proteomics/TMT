@@ -7,6 +7,7 @@
 
 import tomllib
 import argparse
+import warnings
 import pandas as pd
 from tqdm import tqdm
 from pyteomics import mzml
@@ -273,9 +274,12 @@ def __get_ms2_spectrum(
                 ms1 = spectra["ms1"][secondary_key_base + i]
                 break
     if ms1 is None:
-        raise RuntimeError(
-            f"Could not find a suitable MS1 spectrum for precursor m/z {precursor_mz} and retention time {retention_time}."
+        warnings.warn(
+            RuntimeWarning(
+                f"Could not find a suitable MS1 spectrum for precursor m/z {precursor_mz} and retention time {retention_time}."
+            )
         )
+        return None
     # intensity filter
     if __check_precursor_intensity_ms1(
         precursor_mz, ms1, mz_tol, filter_threshold, windows
