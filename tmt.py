@@ -22,6 +22,7 @@ __date = "2025-07-02"
 
 F = "20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz5_3ng_1 1.mzML"
 S = "20250613_125208_TT_multi003_mz5_rep1_Birkl_Factory_Report.csv"
+STRATEGY = 1
 PROTON = 1.007276466812
 TMT = {
     "TMTpro-126": 126.127726,
@@ -178,9 +179,21 @@ def __check_precursor_intensity_ms1(
                 precursor_intensity = spectrum["intensity_array"][i]
             else:
                 # todo clarify behaviour
-                raise RuntimeError(
-                    f"Found ambiguous precursors in MS1 spectrum for precursor m/z {precursor_mz} using MS1 spectrum at retention time {spectrum['rt']}."
-                )
+                if STRATEGY == 1:
+                    # use precursor with highest intensity
+                    if spectrum["intensity_array"][i] > precursor_intensity:
+                        precursor_index = i
+                        precursor_intensity = spectrum["intensity_array"][i]
+                elif STRATEGY == 2:
+                    # do not use identification
+                    return False
+                elif STRATEGY == 3:
+                    # use closest precursor
+                    raise NotImplementedError()
+                else:
+                    raise RuntimeError(
+                        f"Found ambiguous precursors in MS1 spectrum for precursor m/z {precursor_mz} using MS1 spectrum at retention time {spectrum['rt']}."
+                    )
     if precursor_index is None or precursor_intensity is None:
         raise RuntimeError("Could not find precursor in MS1 spectrum.")
     matching_window = None
