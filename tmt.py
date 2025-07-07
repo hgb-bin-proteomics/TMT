@@ -57,7 +57,7 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         parsed_toml = tomllib.load(f)
         f.close()
     if parsed_toml is None:
-        raise RuntimeError()
+        raise RuntimeError("Could not read config file. Is it in valid TOML format?")
     return {
         "window_size": parsed_toml["METHOD"]["window_size"],
         "window_start": parsed_toml["METHOD"]["window_start"],
