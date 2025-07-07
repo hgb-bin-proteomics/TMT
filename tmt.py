@@ -83,7 +83,19 @@ def __get_key(mass: float) -> int:
     return int(round(mass * 10000))
 
 
+# read mass spectra from an mzML file
 def __read_spectra(filename: str) -> Dict[str, Any]:
+    # reads an mzML file and sorts spectra into an easily accessible data structure
+    # that stores them based on precursor m/z and retention time
+    # returned is a Dict[str, Dict[int, Any]]
+    # at the top level there are two keys: "ms1" whichs maps to a dictionary containing
+    # all MS1 spectra
+    # and "ms2" which maps to a dictionary containing all MS2 spectra
+    # MS1: Dict[int, Spectrum]
+    # maps retention time in seconds * 10 000 (rounded) to MS1 spectra
+    # MS2: Dict[int, Dict[int, Spectrum]]
+    # maps precursor m/z * 10 000 (rounded) to dictionaries that map retention time
+    # in seconds * 10 000 (rounded) to MS2 spectra
     spectra_ms1 = dict()
     spectra_ms2 = dict()
     total = 0
@@ -91,20 +103,28 @@ def __read_spectra(filename: str) -> Dict[str, Any]:
     total_ms2 = 0
     with mzml.read(filename) as reader:
         for spectrum in reader:
+            # get MS level
             ms_level = int(spectrum["ms level"])
+            # check if all fields for retrieving retention time are available
             if (
                 "scanList" not in spectrum
                 or "scan" not in spectrum["scanList"]
                 or len(spectrum["scanList"]["scan"]) != 1
             ):
                 raise RuntimeError(f"Can't get retention time for spectrum: {spectrum}")
+            # get retention time
             rt_in_min = float(spectrum["scanList"]["scan"][0]["scan start time"])
+            # retention time seems to be in minutes in mzML files
             rt_in_sec = rt_in_min * 60.0
+            # for MS2 spectra we extract all precursors
+            # though realistically there should only be one
             if ms_level == 2:
                 if "precursorList" in spectrum:
                     for precursor in spectrum["precursorList"]["precursor"]:
                         for ion in precursor["selectedIonList"]["selectedIon"]:
+                            # the primary key is the precursor m/z * 10 000 (rounded)
                             primary_key = __get_key(float(ion["selected ion m/z"]))
+                            # the secondary key is the retention time in seconds * 10 000 (rounded)
                             secondary_key = __get_key(rt_in_sec)
                             s = dict()
                             s["precursor"] = float(ion["selected ion m/z"])
@@ -112,6 +132,8 @@ def __read_spectra(filename: str) -> Dict[str, Any]:
                             s["mz_array"] = spectrum["m/z array"]
                             s["intensity_array"] = spectrum["intensity array"]
                             if primary_key in spectra_ms2:
+                                # if there already is another MS2 spectrum with the same precursor m/z
+                                # and same retention time an error is raised
                                 if secondary_key in spectra_ms2[primary_key]:
                                     raise KeyError(
                                         f"MS2 spectrum for precursor {s['precursor']} and retention time {s['rt']} already exists!"
@@ -125,14 +147,19 @@ def __read_spectra(filename: str) -> Dict[str, Any]:
                                 total += 1
                                 total_ms2 += 1
                 else:
+                    # an error is raised if no precursor is found
                     raise KeyError(f"No precursor for MS2 spectrum found: {spectrum}")
+            # for MS1 spectra we save them based on retention time
             elif ms_level == 1:
+                # the primary key is the retention time in seconds * 10 000 (rounded)
                 primary_key = __get_key(rt_in_sec)
                 s = dict()
                 s["precursor"] = None
                 s["rt"] = rt_in_sec
                 s["mz_array"] = spectrum["m/z array"]
                 s["intensity_array"] = spectrum["intensity array"]
+                # if there are multiple MS1 spectra with the same retention time
+                # an error is raised
                 if primary_key in spectra_ms1:
                     raise KeyError(
                         f"MS1 spectrum for retention time {s['rt']} already exists!"
@@ -151,10 +178,13 @@ def __read_spectra(filename: str) -> Dict[str, Any]:
     return {"ms1": spectra_ms1, "ms2": spectra_ms2}
 
 
+# checks if two values (value and ref) are equal with a certain tolerance (tol)
 def __within_tolerance(value: float, ref: float, tol: float) -> bool:
     return (value > ref - tol) and (value < ref + tol)
 
 
+# checks if the specified precursor m/z can be found in the given MS1 spectrum
+# considering tolerance
 def __check_mz_in_ms1(
     precursor_mz: float, spectrum: Dict[str, Any], mz_tol: float
 ) -> bool:
@@ -164,6 +194,9 @@ def __check_mz_in_ms1(
     return False
 
 
+# check the intensity of the MS2 precursor in the MS1 spectrum if it passes the
+# specified threshold -> where the threshold is defined as precursor intensity
+# divided by total intensity in the window
 def __check_precursor_intensity_ms1(
     precursor_mz: float,
     spectrum: Dict[str, Any],
@@ -171,13 +204,19 @@ def __check_precursor_intensity_ms1(
     filter_threshold: float,
     windows: List[Tuple[float, float]],
 ) -> bool:
+    # parameter windows should define all DIA windows including their start and
+    # end points (in m/z)
     precursor_index = None
     precursor_intensity = None
+    # first look for the precursor in the MS1 spectrum
     for i in range(len(spectrum["mz_array"])):
         if __within_tolerance(spectrum["mz_array"][i], precursor_mz, mz_tol):
+            # if no precursor yet found, set precursor
             if precursor_index is None:
                 precursor_index = i
                 precursor_intensity = spectrum["intensity_array"][i]
+            # else we need to deal with the fact that there is multiple potential
+            # precursors
             else:
                 # todo clarify behaviour
                 if STRATEGY == 1:
@@ -195,17 +234,21 @@ def __check_precursor_intensity_ms1(
                     raise RuntimeError(
                         f"Found ambiguous precursors in MS1 spectrum for precursor m/z {precursor_mz} using MS1 spectrum at retention time {spectrum['rt']}."
                     )
+    # if no precursor is found an error is raised
     if precursor_index is None or precursor_intensity is None:
         raise RuntimeError("Could not find precursor in MS1 spectrum.")
+    # find the corresponding m/z window that the precursor is in
     matching_window = None
     for window in windows:
         if precursor_mz > window[0] and precursor_mz < window[1]:
             matching_window = window
             break
+    # if no matching window is found an error is raised
     if matching_window is None:
         raise RuntimeError(
             f"Could not find matching window for precursor m/z {precursor_mz}!"
         )
+    # calculate total intensity in window
     total_intensity_in_window = 0.0
     for i in range(len(spectrum["mz_array"])):
         if (
@@ -213,11 +256,16 @@ def __check_precursor_intensity_ms1(
             and spectrum["mz_array"][i] < matching_window[1]
         ):
             total_intensity_in_window += spectrum["intensity_array"][i]
+    # return if intensity ratio passes threshold
     return precursor_intensity / total_intensity_in_window > filter_threshold
 
 
+# get corresponding MS2 spectrum for a Spectronaut given precursor m/z and
+# retention time
+# May return None if no MS2 spectrum is found or if it does not pass the
+# intensity filter
 def __get_ms2_spectrum(
-    precursor_mz: float | int,
+    precursor_mz: float,
     mz_tol: float,
     retention_time: float,
     rt_tol: float,
@@ -231,6 +279,7 @@ def __get_ms2_spectrum(
     primary_key_base = __get_key(precursor_mz)
     primary_key_window = __get_key(window_size_unidirectional)
     precursor = None
+    # take the closest precursor m/z MS2 spectrum within the window_size (half)
     for i in range(primary_key_window):
         if primary_key_base - i in spectra["ms2"]:
             precursor = spectra["ms2"][primary_key_base - i]
@@ -238,6 +287,7 @@ def __get_ms2_spectrum(
         if primary_key_base + i in spectra["ms2"]:
             precursor = spectra["ms2"][primary_key_base + i]
             break
+    # if no precursor is found, raise an error
     if precursor is None:
         raise RuntimeError(
             f"Could not find a suitable precursor for precursor m/z {precursor_mz} and retention time {retention_time}."
@@ -246,6 +296,7 @@ def __get_ms2_spectrum(
     secondary_key_base = __get_key(retention_time)
     secondary_key_window = __get_key(rt_tol)
     spectrum = None
+    # take the MS2 spectrum closest in retention time but maximum rt_tol seconds away
     for i in range(secondary_key_window):
         if secondary_key_base - i in precursor:
             spectrum = precursor[secondary_key_base - i]
@@ -253,11 +304,13 @@ def __get_ms2_spectrum(
         if secondary_key_base + i in precursor:
             spectrum = precursor[secondary_key_base + i]
             break
+    # if no MS2 spectrum is found an error is raised
     if spectrum is None:
         raise RuntimeError(
             f"Could not find a suitable retention time for precursor m/z {precursor_mz} and retention time {retention_time}."
         )
-    # look for closest MS1 spectrum that has precursor (with m/z tolerance) within ms1 rt window
+    # look for closest MS1 spectrum that has precursor (with m/z tolerance mz_tol)
+    # within ms1 rt window
     retention_time_ms1_window_range = __get_key(retention_time_ms1_window)
     ms1 = None
     for i in range(retention_time_ms1_window_range):
@@ -273,6 +326,7 @@ def __get_ms2_spectrum(
             ):
                 ms1 = spectra["ms1"][secondary_key_base + i]
                 break
+    # if no MS1 spectrum is found -> no error, but None returned
     if ms1 is None:
         warnings.warn(
             RuntimeWarning(
@@ -288,6 +342,8 @@ def __get_ms2_spectrum(
     return None
 
 
+# given window start and end points (in m/z) and a window size, calculate all
+# m/z windows
 def __get_windows(
     window_start: float, window_end: float, window_size: float
 ) -> List[Tuple[float, float]]:
@@ -303,29 +359,43 @@ def __get_windows(
     return windows
 
 
+# annotates the Spectronaut result with TMT quantities
+# currently based on the factory report
 def __annotate_spectronaut_result(
     spectronaut_filename: str, spectra: Dict[str, Any], settings: Dict[str, Any]
 ) -> pd.DataFrame:
+    # spectra should be given by __read_spectra
+    # settings should be given by __read_settings
     df = pd.read_csv(spectronaut_filename, low_memory=False)
     channels = {key: [] for key in TMT.keys()}
     nr_of_filtered_spectra = 0
     for i, row in tqdm(
         df.iterrows(), total=df.shape[0], desc="Annotating Spectronaut result..."
     ):
+        # get Spectronaut precursor m/z from identification
         prec_mz = float(row[settings["precursor_mz"]])
+        # settings defined m/z tolerance
         mz_tol = float(settings["mz_tolerance"])
+        # get Spectronaut retention time from identification
         rt = float(row[settings["retention_time"]])
+        # settings  defined m/z tolerance in seconds
         rt_tol = float(settings["rt_tolerance"])
+        # settings definied retention time window for MS1 spectra
         rt_window = float(settings["rt_window"])
+        # settings defined DIA window size
         window_size_unidirectional = float(settings["window_size"]) / 2.0
+        # settings defined precursor intensity ratio threshold
         filter_threshold = float(settings["threshold"])
+        # get all m/z windows
         windows = __get_windows(
             float(settings["window_start"]),
             float(settings["window_end"]),
             float(settings["window_size"]),
         )
+        # convert retention time to seconds
         if not settings["retention_time_in_sec"]:
             rt = rt * 60.0
+        # get corresponding MS2 spectrum for identification
         spectrum = __get_ms2_spectrum(
             prec_mz,
             mz_tol,
@@ -337,6 +407,7 @@ def __annotate_spectronaut_result(
             spectra,
             windows,
         )
+        # if a spectrum that passes the intensity filter is found -> quantify
         if spectrum is not None:
             tmt_quants = __get_tmt_intensities(spectrum)
             for key in channels.keys():
@@ -345,6 +416,7 @@ def __annotate_spectronaut_result(
             for key in channels.keys():
                 channels[key].append(None)
             nr_of_filtered_spectra += 1
+    # update Spectronaut result
     for key in channels.keys():
         df[key] = channels[key]
     print(
