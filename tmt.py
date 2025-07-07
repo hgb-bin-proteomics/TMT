@@ -18,11 +18,9 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "0.0.2"
-__date = "2025-07-02"
+__version = "0.0.3"
+__date = "2025-07-07"
 
-F = "20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz5_3ng_1 1.mzML"
-S = "20250613_125208_TT_multi003_mz5_rep1_Birkl_Factory_Report.csv"
 STRATEGY = 1
 PROTON = 1.007276466812
 TMT = {
@@ -45,6 +43,7 @@ TMT = {
     "TMTpro-134C": 134.154565,
     "TMTpro-135N": 135.151600,
 }
+TMT_TOLERANCE = 0.0025
 
 
 def __get_uncharged_mass_from_exp_mass(mz: float, charge: int) -> float:
@@ -75,8 +74,12 @@ def __read_settings(toml: str) -> Dict[str, Any]:
 
 
 def __get_tmt_intensities(spectrum: Dict[str, Any]) -> Dict[str, float]:
-    # TODO
     tmt_quants = {key: 0.0 for key in TMT.keys()}
+    for reporter_ion_name, reporter_ion_mass in TMT.items():
+        for i, mz in enumerate(spectrum["mz_array"]):
+            if __within_tolerance(mz, reporter_ion_mass, TMT_TOLERANCE):
+                tmt_quants[reporter_ion_name] += spectrum["intensity_array"][i]
+                break
     return tmt_quants
 
 
