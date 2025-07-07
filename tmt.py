@@ -70,6 +70,7 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "rt_tolerance": parsed_toml["MATCHING"]["rt_tolerance"],
         "rt_window": parsed_toml["MATCHING"]["ms1_rt_window"],
         "threshold": parsed_toml["FILTERING"]["total_intensity_threshold"],
+        "noise": parsed_toml["FILTERING"]["noise_threshold"],
     }
 
 
@@ -206,6 +207,7 @@ def __check_precursor_intensity_ms1(
     spectrum: Dict[str, Any],
     mz_tol: float,
     filter_threshold: float,
+    noise_threshold: float,
     windows: List[Tuple[float, float]],
 ) -> bool:
     # parameter windows should define all DIA windows including their start and
@@ -252,6 +254,18 @@ def __check_precursor_intensity_ms1(
         raise RuntimeError(
             f"Could not find matching window for precursor m/z {precursor_mz}!"
         )
+    # get highest intensity peak in window
+    most_intense_peak = 0.0
+    for i in range(len(spectrum["mz_array"])):
+        if (
+            spectrum["mz_array"][i] > matching_window[0]
+            and spectrum["mz_array"][i] < matching_window[1]
+        ):
+            if spectrum["intensity_array"][i] > most_intense_peak:
+                most_intense_peak = spectrum["intensity_array"][i]
+    # if precursor is noisy, return False
+    if precursor_intensity / most_intense_peak < noise_threshold:
+        return False
     # calculate total intensity in window
     total_intensity_in_window = 0.0
     for i in range(len(spectrum["mz_array"])):
@@ -259,7 +273,8 @@ def __check_precursor_intensity_ms1(
             spectrum["mz_array"][i] > matching_window[0]
             and spectrum["mz_array"][i] < matching_window[1]
         ):
-            total_intensity_in_window += spectrum["intensity_array"][i]
+            if spectrum["intensity_array"][i] / most_intense_peak > noise_threshold:
+                total_intensity_in_window += spectrum["intensity_array"][i]
     # return if intensity ratio passes threshold
     return precursor_intensity / total_intensity_in_window > filter_threshold
 
@@ -276,6 +291,7 @@ def __get_ms2_spectrum(
     retention_time_ms1_window: float,
     window_size_unidirectional: float,
     filter_threshold: float,
+    noise_threshold: float,
     spectra: Dict[str, Any],
     windows: List[Tuple[float, float]],
 ) -> Dict[str, Any] | None:
@@ -340,7 +356,7 @@ def __get_ms2_spectrum(
         return None
     # intensity filter
     if __check_precursor_intensity_ms1(
-        precursor_mz, ms1, mz_tol, filter_threshold, windows
+        precursor_mz, ms1, mz_tol, filter_threshold, noise_threshold, windows
     ):
         return spectrum
     return None
@@ -390,6 +406,8 @@ def __annotate_spectronaut_result(
         window_size_unidirectional = float(settings["window_size"]) / 2.0
         # settings defined precursor intensity ratio threshold
         filter_threshold = float(settings["threshold"])
+        # settings defined noise threshold
+        noise_threshold = float(settings["noise"])
         # get all m/z windows
         windows = __get_windows(
             float(settings["window_start"]),
@@ -408,6 +426,7 @@ def __annotate_spectronaut_result(
             rt_window,
             window_size_unidirectional,
             filter_threshold,
+            noise_threshold,
             spectra,
             windows,
         )

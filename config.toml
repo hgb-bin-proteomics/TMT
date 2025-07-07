@@ -29,3 +29,5 @@ ms1_rt_window = 10.0
 [FILTERING]
 # precursor intensity fraction in the window to be considered for quantification
 total_intensity_threshold = 0.7
+# minimum relative intensity threshod compared to most intense peak in window to not be considered noise
+noise_threshold = 0.1
