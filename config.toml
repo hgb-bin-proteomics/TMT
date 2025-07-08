@@ -1,6 +1,6 @@
 [METHOD]
 # window size
-window_size = 5.0
+window_size = 0.5
 # window start (m/z)
 window_start = 400.0
 # window end (m/z)
