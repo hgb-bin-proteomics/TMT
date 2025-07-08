@@ -18,8 +18,8 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "0.0.3"
-__date = "2025-07-07"
+__version = "0.0.4"
+__date = "2025-07-08"
 
 STRATEGY = 1
 PROTON = 1.007276466812
@@ -294,6 +294,7 @@ def __get_ms2_spectrum(
     noise_threshold: float,
     spectra: Dict[str, Any],
     windows: List[Tuple[float, float]],
+    verbose: int,
 ) -> Dict[str, Any] | None:
     # get by most similar precursor m/z within window
     primary_key_base = __get_key(precursor_mz)
@@ -309,9 +310,19 @@ def __get_ms2_spectrum(
             break
     # if no precursor is found, raise an error
     if precursor is None:
-        raise RuntimeError(
-            f"Could not find a suitable precursor for precursor m/z {precursor_mz} and retention time {retention_time}."
-        )
+        if verbose == 2:
+            raise RuntimeError(
+                f"Could not find a suitable precursor for precursor m/z {precursor_mz} and retention time {retention_time}."
+            )
+        elif verbose == 1:
+            warnings.warn(
+                RuntimeWarning(
+                    f"Could not find a suitable precursor for precursor m/z {precursor_mz} and retention time {retention_time}."
+                )
+            )
+            return None
+        else:
+            return None
     # get by most similar retention time using a retention time tolerance
     secondary_key_base = __get_key(retention_time)
     secondary_key_window = __get_key(rt_tol)
@@ -326,9 +337,19 @@ def __get_ms2_spectrum(
             break
     # if no MS2 spectrum is found an error is raised
     if spectrum is None:
-        raise RuntimeError(
-            f"Could not find a suitable retention time for precursor m/z {precursor_mz} and retention time {retention_time}."
-        )
+        if verbose == 2:
+            raise RuntimeError(
+                f"Could not find a suitable retention time for precursor m/z {precursor_mz} and retention time {retention_time}."
+            )
+        elif verbose == 1:
+            warnings.warn(
+                RuntimeWarning(
+                    f"Could not find a suitable retention time for precursor m/z {precursor_mz} and retention time {retention_time}."
+                )
+            )
+            return None
+        else:
+            return None
     # look for closest MS1 spectrum that has precursor (with m/z tolerance mz_tol)
     # within ms1 rt window
     retention_time_ms1_window_range = __get_key(retention_time_ms1_window)
@@ -382,7 +403,10 @@ def __get_windows(
 # annotates the Spectronaut result with TMT quantities
 # currently based on the factory report
 def __annotate_spectronaut_result(
-    spectronaut_filename: str, spectra: Dict[str, Any], settings: Dict[str, Any]
+    spectronaut_filename: str,
+    spectra: Dict[str, Any],
+    settings: Dict[str, Any],
+    verbose: int,
 ) -> pd.DataFrame:
     # spectra should be given by __read_spectra
     # settings should be given by __read_settings
@@ -429,6 +453,7 @@ def __annotate_spectronaut_result(
             noise_threshold,
             spectra,
             windows,
+            verbose,
         )
         # if a spectrum that passes the intensity filter is found -> quantify
         if spectrum is not None:
@@ -478,11 +503,21 @@ def main(argv=None) -> pd.DataFrame:
         help="Path/name of the config file.",
         type=str,
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        default=2,
+        help="Verbose level.",
+        type=int,
+    )
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
     spectra = __read_spectra(args.spectra)
-    df = __annotate_spectronaut_result(args.spectronaut, spectra, settings)
+    df = __annotate_spectronaut_result(
+        args.spectronaut, spectra, settings, int(args.verbose)
+    )
     df.to_csv(args.spectronaut + "_tmt_quant.csv", index=False)
     return df
 
