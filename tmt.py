@@ -18,8 +18,8 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "0.0.4"
-__date = "2025-07-08"
+__version = "0.0.5"
+__date = "2025-07-09"
 
 STRATEGY = 1
 PROTON = 1.007276466812
@@ -511,9 +511,20 @@ def main(argv=None) -> pd.DataFrame:
         help="Verbose level.",
         type=int,
     )
+    parser.add_argument(
+        "-w",
+        "--window",
+        dest="window",
+        default=None,
+        help="Window size, overrides config file!",
+        type=float,
+    )
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
+    if args.window is not None:
+        settings["window_size"] = float(args.window)
+    print(settings)
     spectra = __read_spectra(args.spectra)
     df = __annotate_spectronaut_result(
         args.spectronaut, spectra, settings, int(args.verbose)
