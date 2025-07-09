@@ -406,7 +406,7 @@ def __annotate_spectronaut_result(
     spectronaut_filename: str,
     spectra: Dict[str, Any],
     settings: Dict[str, Any],
-    verbose: int,
+    verbose: int = 2,
 ) -> pd.DataFrame:
     # spectra should be given by __read_spectra
     # settings should be given by __read_settings
