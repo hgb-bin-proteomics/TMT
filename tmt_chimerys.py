@@ -94,9 +94,12 @@ def __parse_scan_nr_from_id(id: str) -> int:
 
 def __read_spectra_by_scannumber(
     filename: str,
-) -> Dict[str, [Dict[int, Dict[str, Any]]]]:
+) -> Dict[str, Dict[int, Dict[str, Any]]]:
     spectra_ms1 = dict()
     spectra_ms2 = dict()
+    total = 0
+    total_ms1 = 0
+    total_ms2 = 0
     with mzml.read(filename) as reader:
         for spectrum in reader:
             scan = __parse_scan_nr_from_id(spectrum["id"])
@@ -117,21 +120,27 @@ def __read_spectra_by_scannumber(
             if ms_level == 2:
                 if "precursorList" not in spectrum:
                     raise RuntimeError(
-                        f"No precursor for MS2 spectrum found: {spectrum}"
+                        f"[precursorList] No precursor for MS2 spectrum found: {spectrum}"
                     )
                 if (
                     "precursor" not in spectrum["precursorList"]
                     or len(spectrum["precursorList"]["precursor"]) != 1
                 ):
-                    raise RuntimeError()
+                    raise RuntimeError(
+                        f"[precursor] No precursor for MS2 spectrum found: {spectrum}"
+                    )
                 for precursor in spectrum["precursorList"]["precursor"]:
                     if "selectedIonList" not in precursor:
-                        raise RuntimeError()
+                        raise RuntimeError(
+                            f"[selectedIonList] No precursor for MS2 spectrum found: {spectrum}"
+                        )
                     if (
                         "selectedIon" not in precursor["selectedIonList"]
-                        or len(recursor["selectedIonList"]["selectedIon"]) != 1
+                        or len(precursor["selectedIonList"]["selectedIon"]) != 1
                     ):
-                        raise RuntimeError
+                        raise RuntimeError(
+                            f"[selectedIon] No precursor for MS2 spectrum found: {spectrum}"
+                        )
                     for ion in precursor["selectedIonList"]["selectedIon"]:
                         s = dict()
                         s["scan_nr"] = scan
