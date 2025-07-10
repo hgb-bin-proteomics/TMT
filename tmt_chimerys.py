@@ -88,6 +88,94 @@ def __get_key(mass: float) -> int:
     return int(round(mass * 10000))
 
 
+def __parse_scan_nr_from_id(id: str) -> int:
+    return int(id.split("scan=")[1].split()[0])
+
+
+def __read_spectra_by_scannumber(
+    filename: str,
+) -> Dict[str, [Dict[int, Dict[str, Any]]]]:
+    spectra_ms1 = dict()
+    spectra_ms2 = dict()
+    with mzml.read(filename) as reader:
+        for spectrum in reader:
+            scan = __parse_scan_nr_from_id(spectrum["id"])
+            ms_level = int(spectrum["ms level"])
+            # check if all fields for retrieving retention time are available
+            if (
+                "scanList" not in spectrum
+                or "scan" not in spectrum["scanList"]
+                or len(spectrum["scanList"]["scan"]) != 1
+            ):
+                raise RuntimeError(f"Can't get retention time for spectrum: {spectrum}")
+            # get retention time
+            rt_in_min = float(spectrum["scanList"]["scan"][0]["scan start time"])
+            # retention time seems to be in minutes in mzML files
+            rt_in_sec = rt_in_min * 60.0
+            # for MS2 spectra we extract all precursors
+            # though realistically there should only be one
+            if ms_level == 2:
+                if "precursorList" not in spectrum:
+                    raise RuntimeError(
+                        f"No precursor for MS2 spectrum found: {spectrum}"
+                    )
+                if (
+                    "precursor" not in spectrum["precursorList"]
+                    or len(spectrum["precursorList"]["precursor"]) != 1
+                ):
+                    raise RuntimeError()
+                for precursor in spectrum["precursorList"]["precursor"]:
+                    if "selectedIonList" not in precursor:
+                        raise RuntimeError()
+                    if (
+                        "selectedIon" not in precursor["selectedIonList"]
+                        or len(recursor["selectedIonList"]["selectedIon"]) != 1
+                    ):
+                        raise RuntimeError
+                    for ion in precursor["selectedIonList"]["selectedIon"]:
+                        s = dict()
+                        s["scan_nr"] = scan
+                        s["precursor"] = float(ion["selected ion m/z"])
+                        s["rt"] = rt_in_sec
+                        s["mz_array"] = spectrum["m/z array"]
+                        s["intensity_array"] = spectrum["intensity array"]
+                        if scan in spectra_ms2:
+                            raise RuntimeError()
+                        else:
+                            spectra_ms2[scan] = s
+                            total += 1
+                            total_ms2 += 1
+
+            # for MS1 spectra we save them based on retention time
+            elif ms_level == 1:
+                # the primary key is the retention time in seconds * 10 000 (rounded)
+                primary_key = __get_key(rt_in_sec)
+                s = dict()
+                s["scan_nr"] = scan
+                s["precursor"] = None
+                s["rt"] = rt_in_sec
+                s["mz_array"] = spectrum["m/z array"]
+                s["intensity_array"] = spectrum["intensity array"]
+                # if there are multiple MS1 spectra with the same retention time
+                # an error is raised
+                if primary_key in spectra_ms1:
+                    raise KeyError(
+                        f"MS1 spectrum for retention time {s['rt']} already exists!"
+                    )
+                else:
+                    spectra_ms1[primary_key] = s
+                    total += 1
+                    total_ms1 += 1
+            else:
+                raise ValueError(
+                    f"Found spectrum with MS level {ms_level}. Not supported!"
+                )
+    print(f"Total number of parsed spectra: {total}")
+    print(f"Number of MS1 spectra: {total_ms1}")
+    print(f"Number of MS2 spectra: {total_ms2}")
+    return {"ms1": spectra_ms1, "ms2": spectra_ms2}
+
+
 # read mass spectra from an mzML file
 def __read_spectra(filename: str) -> Dict[str, Any]:
     # reads an mzML file and sorts spectra into an easily accessible data structure
