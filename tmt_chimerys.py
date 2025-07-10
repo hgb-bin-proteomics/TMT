@@ -261,9 +261,9 @@ def __calculate_precursor_intensity_ms1(
         ):
             if spectrum["intensity_array"][i] > most_intense_peak:
                 most_intense_peak = spectrum["intensity_array"][i]
-    # if precursor is noisy, return False
+    # if precursor is noisy, return 0.0
     if precursor_intensity / most_intense_peak < noise_threshold:
-        return False
+        return 0.0
     # calculate total intensity in window
     total_intensity_in_window = 0.0
     for i in range(len(spectrum["mz_array"])):
