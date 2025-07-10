@@ -464,7 +464,9 @@ def main(argv=None) -> pd.DataFrame:
     spectra = __read_spectra_by_scannumber(args.spectra)
     df = __annotate_chimerys_result(args.chimerys, spectra, settings)
     df.to_excel(
-        args.chimerys + "purity_tmt_quant.csv", engine="xlsxwriter", index=False
+        args.chimerys.split(".xlsx")[0] + "_purity_tmt_quant.xlsx",
+        engine="xlsxwriter",
+        index=False,
     )
     return df
 
