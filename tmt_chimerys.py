@@ -269,7 +269,7 @@ def __calculate_precursor_intensity_ms1(
     for i in range(len(spectrum["mz_array"])):
         if (
             spectrum["mz_array"][i] > matching_window[0]
-            and spectrum["mz_array"][i] < matching_window[1]
+            and spectrum["mz_array"][i] <= matching_window[1]
         ):
             if spectrum["intensity_array"][i] / most_intense_peak > noise_threshold:
                 total_intensity_in_window += spectrum["intensity_array"][i]
