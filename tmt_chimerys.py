@@ -376,6 +376,51 @@ def __check_precursor_intensity_ms1(
     return precursor_intensity / total_intensity_in_window > filter_threshold
 
 
+def __get_ms2_spectrum_by_scannumber(
+    scan_nr: int,
+    precursor_mz: float,
+    mz_tol: float,
+    retention_time_ms1_window: float,
+    filter_threshold: float,
+    noise_threshold: float,
+    spectra: Dict[str, Any],
+    windows: List[Tuple[float, float]],
+) -> Dict[str, Any] | None:
+    spectrum = spectra["ms2"][scan_nr]
+    retention_time_key = __get_key(spectrum["rt"])
+    # look for closest MS1 spectrum that has precursor (with m/z tolerance mz_tol)
+    # within ms1 rt window
+    retention_time_ms1_window_range = __get_key(retention_time_ms1_window)
+    ms1 = None
+    for i in range(retention_time_ms1_window_range):
+        if retention_time_key - i in spectra["ms1"]:
+            if __check_mz_in_ms1(
+                precursor_mz, spectra["ms1"][retention_time_key - i], mz_tol
+            ):
+                ms1 = spectra["ms1"][retention_time_key - i]
+                break
+        if retention_time_key + i in spectra["ms1"]:
+            if __check_mz_in_ms1(
+                precursor_mz, spectra["ms1"][retention_time_key + i], mz_tol
+            ):
+                ms1 = spectra["ms1"][retention_time_key + i]
+                break
+    # if no MS1 spectrum is found -> no error, but None returned
+    if ms1 is None:
+        warnings.warn(
+            RuntimeWarning(
+                f"Could not find a suitable MS1 spectrum for precursor m/z {precursor_mz} and retention time {spectrum['rt']}. MS2 scan: {scan_nr}"
+            )
+        )
+        return None
+    # intensity filter
+    if __check_precursor_intensity_ms1(
+        precursor_mz, ms1, mz_tol, filter_threshold, noise_threshold, windows
+    ):
+        return spectrum
+    return None
+
+
 # get corresponding MS2 spectrum for a Spectronaut given precursor m/z and
 # retention time
 # May return None if no MS2 spectrum is found or if it does not pass the
