@@ -244,7 +244,7 @@ def __calculate_precursor_intensity_ms1(
     # find the corresponding m/z window that the precursor is in
     matching_window = None
     for window in windows:
-        if precursor_mz > window[0] and precursor_mz < window[1]:
+        if precursor_mz > window[0] and precursor_mz <= window[1]:
             matching_window = window
             break
     # if no matching window is found an error is raised
@@ -346,7 +346,7 @@ def __annotate_chimerys_result(
 ) -> pd.DataFrame:
     # spectra should be given by __read_spectra_by_scannumber
     # settings should be given by __read_settings
-    df = pd.read_csv(filename, sep="\t", low_memory=False)
+    df = pd.read_excel(filename)
     channels = {key: [] for key in TMT.keys()}
     purities = list()
     nr_of_missing_ms1 = 0
@@ -401,9 +401,8 @@ def __annotate_chimerys_result(
     df["Co-Isolation Purity"] = purities
     for key in channels.keys():
         df[f"Annotated {key}"] = channels[key]
-    print(
-        f"Total number of identifications with MS1 spectra below threshold: {nr_of_impure_ids}"
-    )
+    print(f"Total number of identifications: {df.shape[0]}")
+    print(f"Total number of identifications with impure precursors: {nr_of_impure_ids}")
     print(
         f"Total number of identifications with MS1 spectra not found: {nr_of_missing_ms1}"
     )
@@ -464,7 +463,9 @@ def main(argv=None) -> pd.DataFrame:
     print(settings)
     spectra = __read_spectra_by_scannumber(args.spectra)
     df = __annotate_chimerys_result(args.chimerys, spectra, settings)
-    df.to_csv(args.chimerys + "purity_tmt_quant.csv", index=False)
+    df.to_excel(
+        args.chimerys + "purity_tmt_quant.csv", engine="xlsxwriter", index=False
+    )
     return df
 
 
