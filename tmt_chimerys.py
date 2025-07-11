@@ -207,7 +207,7 @@ def __calculate_precursor_intensity_ms1(
     mz_tol: float,
     noise_threshold: float,
     windows: List[Tuple[float, float]],
-) -> bool:
+) -> float:
     # parameter windows should define all DIA windows including their start and
     # end points (in m/z)
     precursor_index = None
