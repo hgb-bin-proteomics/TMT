@@ -210,13 +210,15 @@ def __calculate_precursor_intensity_ms1(
 ) -> float:
     # parameter windows should define all DIA windows including their start and
     # end points (in m/z)
+    precursor = None
     precursor_index = None
     precursor_intensity = None
     # first look for the precursor in the MS1 spectrum
     for i in range(len(spectrum["mz_array"])):
         if __within_tolerance(spectrum["mz_array"][i], precursor_mz, mz_tol):
             # if no precursor yet found, set precursor
-            if precursor_index is None:
+            if precursor is None:
+                precursor = spectrum["mz_array"][i]
                 precursor_index = i
                 precursor_intensity = spectrum["intensity_array"][i]
             # else we need to deal with the fact that there is multiple potential
@@ -226,11 +228,12 @@ def __calculate_precursor_intensity_ms1(
                 if STRATEGY == 1:
                     # use precursor with highest intensity
                     if spectrum["intensity_array"][i] > precursor_intensity:
+                        precursor = spectrum["mz_array"][i]
                         precursor_index = i
                         precursor_intensity = spectrum["intensity_array"][i]
                 elif STRATEGY == 2:
                     # do not use identification
-                    return False
+                    return -1.0
                 elif STRATEGY == 3:
                     # use closest precursor
                     raise NotImplementedError()
@@ -239,12 +242,12 @@ def __calculate_precursor_intensity_ms1(
                         f"Found ambiguous precursors in MS1 spectrum for precursor m/z {precursor_mz} using MS1 spectrum at retention time {spectrum['rt']}."
                     )
     # if no precursor is found an error is raised
-    if precursor_index is None or precursor_intensity is None:
+    if precursor is None or precursor_index is None or precursor_intensity is None:
         raise RuntimeError("Could not find precursor in MS1 spectrum.")
     # find the corresponding m/z window that the precursor is in
     matching_window = None
     for window in windows:
-        if precursor_mz > window[0] and precursor_mz <= window[1]:
+        if precursor > window[0] and precursor <= window[1]:
             matching_window = window
             break
     # if no matching window is found an error is raised
@@ -257,7 +260,7 @@ def __calculate_precursor_intensity_ms1(
     for i in range(len(spectrum["mz_array"])):
         if (
             spectrum["mz_array"][i] > matching_window[0]
-            and spectrum["mz_array"][i] < matching_window[1]
+            and spectrum["mz_array"][i] <= matching_window[1]
         ):
             if spectrum["intensity_array"][i] > most_intense_peak:
                 most_intense_peak = spectrum["intensity_array"][i]
