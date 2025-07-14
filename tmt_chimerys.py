@@ -349,7 +349,7 @@ def __annotate_chimerys_result(
 ) -> pd.DataFrame:
     # spectra should be given by __read_spectra_by_scannumber
     # settings should be given by __read_settings
-    df = pd.read_excel(filename)
+    df = pd.read_csv(filename, sep="\t", low_memory=False)
     channels = {key: [] for key in TMT.keys()}
     purities = list()
     nr_of_missing_ms1 = 0
@@ -466,9 +466,9 @@ def main(argv=None) -> pd.DataFrame:
     print(settings)
     spectra = __read_spectra_by_scannumber(args.spectra)
     df = __annotate_chimerys_result(args.chimerys, spectra, settings)
-    df.to_excel(
-        args.chimerys.split(".xlsx")[0] + "_purity_tmt_quant.xlsx",
-        engine="xlsxwriter",
+    df.to_csv(
+        args.chimerys.split(".txt")[0] + "_purity_tmt_quant.txt",
+        sep="\t",
         index=False,
     )
     return df
