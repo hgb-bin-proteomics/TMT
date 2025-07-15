@@ -441,7 +441,7 @@ def main(argv=None) -> pd.DataFrame:
         "-c",
         "--config",
         dest="config",
-        default=None,
+        required=True,
         help="Path/name of the config file.",
         type=str,
     )
@@ -460,7 +460,6 @@ def main(argv=None) -> pd.DataFrame:
         default=False,
         action="store_true",
         help="Enables separate TMT quantification.",
-        type=bool,
     )
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
