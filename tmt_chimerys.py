@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# UNNAMED TMT PROJECT
+# DIA TMT QUANTIFICATION CHIMERYS
 # 2025 (c) Micha Johannes Birklbauer
 # https://github.com/michabirklbauer/
 # micha.birklbauer@gmail.com
@@ -18,8 +18,8 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "0.0.5"
-__date = "2025-07-09"
+__version = "0.0.9"
+__date = "2025-07-15"
 
 STRATEGY = 1
 PROTON = 1.007276466812
@@ -61,13 +61,7 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "window_size": parsed_toml["METHOD"]["window_size"],
         "window_start": parsed_toml["METHOD"]["window_start"],
         "window_end": parsed_toml["METHOD"]["window_end"],
-        "precursor_mass": parsed_toml["SPECTRONAUT"]["precursor_mass"],
-        "precursor_mz": parsed_toml["SPECTRONAUT"]["precursor_mz"],
-        "precursor_charge": parsed_toml["SPECTRONAUT"]["precursor_mz"],
-        "retention_time": parsed_toml["SPECTRONAUT"]["retention_time"],
-        "retention_time_in_sec": parsed_toml["SPECTRONAUT"]["retention_time_in_sec"],
         "mz_tolerance": parsed_toml["MATCHING"]["mz_tolerance"],
-        "rt_tolerance": parsed_toml["MATCHING"]["rt_tolerance"],
         "rt_window": parsed_toml["MATCHING"]["ms1_rt_window"],
         "threshold": parsed_toml["FILTERING"]["total_intensity_threshold"],
         "noise": parsed_toml["FILTERING"]["noise_threshold"],
@@ -75,6 +69,7 @@ def __read_settings(toml: str) -> Dict[str, Any]:
 
 
 def __get_tmt_intensities(spectrum: Dict[str, Any]) -> Dict[str, float]:
+    # TODO [abundance instead of intensities]
     tmt_quants = {key: 0.0 for key in TMT.keys()}
     for reporter_ion_name, reporter_ion_mass in TMT.items():
         for i, mz in enumerate(spectrum["mz_array"]):
@@ -340,13 +335,18 @@ def __get_windows(
     return windows
 
 
-# annotates the Chimerys result with TMT quantities
+# annotates the Chimerys result with purity and TMT quantities
 # currently based on the PSM table
 def __annotate_chimerys_result(
     filename: str,
     spectra: Dict[str, Any],
     settings: Dict[str, Any],
+    quantify: bool = False,
 ) -> pd.DataFrame:
+    if quantify:
+        print("Quantification enabled!")
+    else:
+        print("Quantification disabled! Only calculating co-isolation purity!")
     # spectra should be given by __read_spectra_by_scannumber
     # settings should be given by __read_settings
     df = pd.read_csv(filename, sep="\t", low_memory=False)
@@ -387,23 +387,26 @@ def __annotate_chimerys_result(
         )
         spectrum = spectrum_purity["spectrum"]
         purity = spectrum_purity["purity"]
-        # if a spectrum that passes the intensity filter is found -> quantify
+        # if a spectrum is found -> purity and quantify
         if spectrum is not None:
-            tmt_quants = __get_tmt_intensities(spectrum)
-            for key in channels.keys():
-                channels[key].append(tmt_quants[key])
+            if quantify:
+                tmt_quants = __get_tmt_intensities(spectrum)
+                for key in channels.keys():
+                    channels[key].append(tmt_quants[key])
             purities.append(purity)
             if purity < filter_threshold:
                 nr_of_impure_ids += 1
         else:
-            for key in channels.keys():
-                channels[key].append(None)
+            if quantify:
+                for key in channels.keys():
+                    channels[key].append(None)
             purities.append(None)
             nr_of_missing_ms1 += 1
     # update Chimerys result
     df["Co-Isolation Purity"] = purities
-    for key in channels.keys():
-        df[f"Annotated {key}"] = channels[key]
+    if quantify:
+        for key in channels.keys():
+            df[f"Annotated {key}"] = channels[key]
     print(f"Total number of identifications: {df.shape[0]}")
     print(f"Total number of identifications with impure precursors: {nr_of_impure_ids}")
     print(
@@ -414,16 +417,16 @@ def __annotate_chimerys_result(
 
 def main(argv=None) -> pd.DataFrame:
     parser = argparse.ArgumentParser(
-        prog="TMT",
-        description="TMT",
-        epilog="Bottom Text",
+        prog="tmt_chimerys.py",
+        description="Calculates co-isolation purity for Chimerys DIA TMT PSMs and optionally quantifies them.",
+        epilog="(c) Research Institute of Molecular Pathology, 2025",
     )
     parser.add_argument(
         "-i",
         "--chimerys",
         dest="chimerys",
         required=True,
-        help="Path/name of the Chimerys result file.",
+        help="Path/name of the Chimerys result file in tab-separated .txt format.",
         type=str,
     )
     parser.add_argument(
@@ -443,20 +446,21 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
     )
     parser.add_argument(
-        "-v",
-        "--verbose",
-        dest="verbose",
-        default=2,
-        help="Verbose level.",
-        type=int,
-    )
-    parser.add_argument(
         "-w",
         "--window",
         dest="window",
         default=None,
         help="Window size, overrides config file!",
         type=float,
+    )
+    parser.add_argument(
+        "-q",
+        "--quantify",
+        dest="quantify",
+        default=False,
+        action="store_true",
+        help="Enables separate TMT quantification.",
+        type=bool,
     )
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
@@ -465,7 +469,7 @@ def main(argv=None) -> pd.DataFrame:
         settings["window_size"] = float(args.window)
     print(settings)
     spectra = __read_spectra_by_scannumber(args.spectra)
-    df = __annotate_chimerys_result(args.chimerys, spectra, settings)
+    df = __annotate_chimerys_result(args.chimerys, spectra, settings, args.quantify)
     df.to_csv(
         args.chimerys.split(".txt")[0] + "_purity_tmt_quant.txt",
         sep="\t",
