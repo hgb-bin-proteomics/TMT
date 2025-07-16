@@ -27,7 +27,7 @@ def main():
         )
         # console log
         print("---------- FINISHED ANALYSIS FOR ONE FILE ----------")
-        print(f"processed {nr}/{len(file_prefixes)} files.")
+        print(f"processed {nr + 1}/{len(file_prefixes)} files.")
 
 
 if __name__ == "__main__":
