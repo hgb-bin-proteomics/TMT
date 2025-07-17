@@ -196,9 +196,10 @@ def __check_mz_in_ms1(
     return False
 
 
+# calculates the purity for a given precursor
 def __calculate_precursor_intensity_ms1(
     precursor_mz: float,
-    spectrum: Dict[str, Any],
+    spectrum: Dict[str, Any],  # MS1 spectrum
     mz_tol: float,
     noise_threshold: float,
     windows: List[Tuple[float, float]],
@@ -271,7 +272,7 @@ def __calculate_precursor_intensity_ms1(
         ):
             if spectrum["intensity_array"][i] / most_intense_peak > noise_threshold:
                 total_intensity_in_window += spectrum["intensity_array"][i]
-    # return if intensity ratio passes threshold
+    # return intensity ratio (purity)
     return precursor_intensity / total_intensity_in_window
 
 
