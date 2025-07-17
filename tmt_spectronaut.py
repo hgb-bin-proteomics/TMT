@@ -200,13 +200,23 @@ def __get_ms2_spectrum(
     # if no MS2 spectrum is found an error is raised
     if spectrum is None:
         if verbose > 1:
+            rt_deltas = list()
+            for rt in precursor.keys():
+                rt_deltas.append(abs(secondary_key_base - rt))
+            rt_deltas = sorted(rt_deltas)
             raise RuntimeError(
                 f"[no rt] Could not find a suitable retention time for precursor m/z {precursor_mz} and retention time {retention_time}."
+                f" Closest retention time: {rt_deltas[0] / 10000.0} s"
             )
         elif verbose == 1:
+            rt_deltas = list()
+            for rt in precursor.keys():
+                rt_deltas.append(abs(secondary_key_base - rt))
+            rt_deltas = sorted(rt_deltas)
             warnings.warn(
                 RuntimeWarning(
                     f"[no rt] Could not find a suitable retention time for precursor m/z {precursor_mz} and retention time {retention_time}."
+                    f" Closest retention time: {rt_deltas[0] / 10000.0} s"
                 )
             )
             return {"spectrum": None, "purity": None}
