@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
 
-# SCRIPT NAME - TESTS
+# DIA TMT QUANTIFICATION - TESTS
 # 2023 (c) Micha Johannes Birklbauer
 # https://github.com/michabirklbauer/
 # micha.birklbauer@gmail.com
 
 
 def test1():
-    assert True
+    from tmt_chimerys import main  # noqa: F401
+    from tmt_chimerys import __version
+
+    assert int(__version.split(".")[2]) >= 9
+
+
+def test2():
+    from tmt_spectronaut import main  # noqa: F401
+    from tmt_spectronaut import __version
+
+    assert int(__version.split(".")[2]) >= 9

@@ -1,7 +1,19 @@
-[SPECTRONAUT]
-precursor_mass = "FG.Mass"
-precursor_mz = "FG.PrecMz"
-precursor_charge = "FG.Charge"
+[METHOD]
+# window size
+window_size = 0.5
+# window start (m/z)
+window_start = 400.0
+# window end (m/z)
+window_end = 800.0
 
 [MATCHING]
-tolerance = 0.02
+# m/z tolerance for matching peaks in Dalton
+mz_tolerance = 0.02
+# retention time window that a MS1 and corresponding MS2 spectrum must be in
+ms1_rt_window = 10.0
+
+[FILTERING]
+# precursor intensity fraction in the window to be considered for quantification
+total_intensity_threshold = 0.7
+# minimum relative intensity threshold compared to most intense peak in window to not be considered noise
+noise_threshold = 0.1
