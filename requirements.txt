@@ -1,5 +1,3 @@
 pandas
-openpyxl
-xlsxwriter
 tqdm
 pyteomics[XML]
