@@ -9,8 +9,18 @@ window_end = 800.0
 [MATCHING]
 # m/z tolerance for matching peaks in Dalton
 mz_tolerance = 0.02
-# retention time window that a MS1 and corresponding MS2 spectrum must be in
+# retention time tolerance in seconds for matching identifications to MS2 spectra
+rt_tolerance = 3.0
+# retention time window in seconds that a MS1 and corresponding MS2 spectrum must be in
 ms1_rt_window = 10.0
+
+[ISOTOPES]
+# whether precursor isotopes should be considered for purity calculation
+consider_precursor_isotopes = true
+# isotope match tolerance in Dalton
+isotope_tolerance = 0.01
+# maximum considered precursor charge
+max_charge = 6
 
 [FILTERING]
 # precursor intensity fraction in the window to be considered for quantification
