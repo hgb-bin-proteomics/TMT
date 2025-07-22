@@ -17,6 +17,7 @@ from typing import Tuple
 from typing import Any
 
 from tmt_chimerys import TMT
+from tmt_chimerys import __get_bool_from_value
 from tmt_chimerys import __read_settings
 from tmt_chimerys import __get_tmt_intensities
 from tmt_chimerys import __get_key
@@ -24,10 +25,8 @@ from tmt_chimerys import __check_mz_in_ms1
 from tmt_chimerys import __calculate_precursor_intensity_ms1
 from tmt_chimerys import __get_windows
 
-__version = "0.0.9"
-__date = "2025-07-17"
-
-RT_TOL = 3.0
+__version = "0.0.10"
+__date = "2025-07-22"
 
 
 # read mass spectra from an mzML file
@@ -152,6 +151,9 @@ def __get_ms2_spectrum(
     retention_time: float,
     rt_tol: float,
     retention_time_ms1_window: float,
+    do_deisotope: bool,
+    isotope_tol: float,
+    max_charge: int,
     window_size_unidirectional: float,
     noise_threshold: float,
     spectra: Dict[str, Any],
@@ -250,7 +252,14 @@ def __get_ms2_spectrum(
         return {"spectrum": None, "purity": None}
     # intensity filter
     purity = __calculate_precursor_intensity_ms1(
-        precursor_mz, ms1, mz_tol, noise_threshold, windows
+        precursor_mz,
+        ms1,
+        mz_tol,
+        do_deisotope,
+        isotope_tol,
+        max_charge,
+        noise_threshold,
+        windows,
     )
     return {"spectrum": spectrum, "purity": purity}
 
@@ -280,7 +289,7 @@ def __annotate_spectronaut_result(
         # get Spectronaut retention time from identification
         rt = float(row["EG.ApexRT"]) * 60.0
         # settings  defined m/z tolerance in seconds
-        rt_tol = RT_TOL
+        rt_tol = float(settings["rt_tolerance"])
         # settings definied retention time window for MS1 spectra
         rt_window = float(settings["rt_window"])
         # settings defined DIA window size
@@ -295,6 +304,10 @@ def __annotate_spectronaut_result(
             float(settings["window_end"]),
             float(settings["window_size"]),
         )
+        # isotope parameters
+        do_deisotope = __get_bool_from_value(settings["deisotope"])
+        isotope_tolerance = float(settings["isotope_tolerance"])
+        max_charge = int(settings["max_charge"])
         # get corresponding MS2 spectrum for identification
         spectrum_purity = __get_ms2_spectrum(
             prec_mz,
@@ -302,6 +315,9 @@ def __annotate_spectronaut_result(
             rt,
             rt_tol,
             rt_window,
+            do_deisotope,
+            isotope_tolerance,
+            max_charge,
             window_size_unidirectional,
             noise_threshold,
             spectra,

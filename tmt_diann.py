@@ -13,16 +13,15 @@ from typing import Dict
 from typing import Any
 
 from tmt_chimerys import TMT
+from tmt_chimerys import __get_bool_from_value
 from tmt_chimerys import __read_settings
 from tmt_chimerys import __get_tmt_intensities
 from tmt_chimerys import __get_windows
 from tmt_spectronaut import __read_spectra
 from tmt_spectronaut import __get_ms2_spectrum
 
-__version = "0.0.9"
-__date = "2025-07-21"
-
-RT_TOL = 3.0
+__version = "0.0.10"
+__date = "2025-07-22"
 
 
 # annotates the DIA-NN result with TMT quantities
@@ -50,7 +49,7 @@ def __annotate_diann_result(
         # get DIA-NN retention time from identification
         rt = float(row["RT"]) * 60.0
         # settings  defined m/z tolerance in seconds
-        rt_tol = RT_TOL
+        rt_tol = float(settings["rt_tolerance"])
         # settings definied retention time window for MS1 spectra
         rt_window = float(settings["rt_window"])
         # settings defined DIA window size
@@ -65,6 +64,10 @@ def __annotate_diann_result(
             float(settings["window_end"]),
             float(settings["window_size"]),
         )
+        # isotope parameters
+        do_deisotope = __get_bool_from_value(settings["deisotope"])
+        isotope_tolerance = float(settings["isotope_tolerance"])
+        max_charge = int(settings["max_charge"])
         # get corresponding MS2 spectrum for identification
         spectrum_purity = __get_ms2_spectrum(
             prec_mz,
@@ -72,6 +75,9 @@ def __annotate_diann_result(
             rt,
             rt_tol,
             rt_window,
+            do_deisotope,
+            isotope_tolerance,
+            max_charge,
             window_size_unidirectional,
             noise_threshold,
             spectra,
