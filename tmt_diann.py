@@ -37,6 +37,7 @@ def __annotate_diann_result(
     df = pd.read_parquet(diann_filename)
     channels = {key: [] for key in TMT.keys()}
     purities = list()
+    parsed_scannr = list()
     nr_of_missing_ms1 = 0
     nr_of_impure_ids = 0
     for i, row in tqdm(
@@ -94,13 +95,16 @@ def __annotate_diann_result(
             purities.append(purity)
             if purity < filter_threshold:
                 nr_of_impure_ids += 1
+            parsed_scannr.append(spectrum["scan_nr"])
         else:
             for key in channels.keys():
                 channels[key].append(None)
             purities.append(None)
             nr_of_missing_ms1 += 1
+            parsed_scannr.append(None)
     # update DIA-NN result
     df["Co-Isolation Purity"] = purities
+    df["Parsed MS2 Scan Number"] = parsed_scannr
     for key in channels.keys():
         df[f"Annotated {key}"] = channels[key]
     print(f"Total number of identifications: {df.shape[0]}")
