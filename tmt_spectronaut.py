@@ -21,11 +21,12 @@ from tmt_chimerys import __get_bool_from_value
 from tmt_chimerys import __read_settings
 from tmt_chimerys import __get_tmt_intensities
 from tmt_chimerys import __get_key
+from tmt_chimerys import __parse_scan_nr_from_id
 from tmt_chimerys import __check_mz_in_ms1
 from tmt_chimerys import __calculate_precursor_intensity_ms1
 from tmt_chimerys import __get_windows
 
-__version = "0.0.10"
+__version = "0.0.11"
 __date = "2025-07-22"
 
 
@@ -49,6 +50,7 @@ def __read_spectra(filename: str) -> Dict[str, Any]:
     total_ms2 = 0
     with mzml.read(filename) as reader:
         for spectrum in reader:
+            scan = __parse_scan_nr_from_id(spectrum["id"])
             # get MS level
             ms_level = int(spectrum["ms level"])
             # check if all fields for retrieving retention time are available
@@ -94,6 +96,7 @@ def __read_spectra(filename: str) -> Dict[str, Any]:
                         # the secondary key is the retention time in seconds * 10 000 (rounded)
                         secondary_key = __get_key(rt_in_sec)
                         s = dict()
+                        s["scan_nr"] = scan
                         s["precursor"] = float(ion["selected ion m/z"])
                         s["rt"] = rt_in_sec
                         s["mz_array"] = spectrum["m/z array"]
@@ -118,6 +121,7 @@ def __read_spectra(filename: str) -> Dict[str, Any]:
                 # the primary key is the retention time in seconds * 10 000 (rounded)
                 primary_key = __get_key(rt_in_sec)
                 s = dict()
+                s["scan_nr"] = scan
                 s["precursor"] = None
                 s["rt"] = rt_in_sec
                 s["mz_array"] = spectrum["m/z array"]
