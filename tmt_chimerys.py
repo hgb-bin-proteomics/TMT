@@ -18,11 +18,10 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "0.0.9"
-__date = "2025-07-15"
+__version = "0.0.10"
+__date = "2025-07-22"
 
-STRATEGY = 1
-PROTON = 1.007276466812
+TMT_TOLERANCE = 0.0025
 TMT = {
     "TMTpro-126": 126.127726,
     "TMTpro-127N": 127.124761,
@@ -43,7 +42,24 @@ TMT = {
     "TMTpro-134C": 134.154565,
     "TMTpro-135N": 135.151600,
 }
-TMT_TOLERANCE = 0.0025
+PROTON = 1.007276466812
+ISOTOPE = 1.00335
+STRATEGY = 1
+
+
+def __get_bool_from_value(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    elif isinstance(value, int):
+        if value in [0, 1]:
+            return bool(value)
+        else:
+            raise ValueError(f"Cannot parse bool value from the given input {value}.")
+    elif isinstance(value, str):
+        return "t" in value.lower()
+    else:
+        raise ValueError(f"Cannot parse bool value from the given input {value}.")
+    return False
 
 
 def __get_uncharged_mass_from_exp_mass(mz: float, charge: int) -> float:
@@ -62,14 +78,19 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "window_start": parsed_toml["METHOD"]["window_start"],
         "window_end": parsed_toml["METHOD"]["window_end"],
         "mz_tolerance": parsed_toml["MATCHING"]["mz_tolerance"],
+        "rt_tolerance": parsed_toml["MATCHING"]["rt_tolerance"],
         "rt_window": parsed_toml["MATCHING"]["ms1_rt_window"],
         "threshold": parsed_toml["FILTERING"]["total_intensity_threshold"],
         "noise": parsed_toml["FILTERING"]["noise_threshold"],
+        "deisotope": parsed_toml["ISOTOPES"]["consider_precursor_isotopes"],
+        "isotope_tolerance": parsed_toml["ISOTOPES"]["isotope_tolerance"],
+        "max_charge": parsed_toml["ISOTOPES"]["max_charge"],
     }
 
 
 def __get_tmt_intensities(spectrum: Dict[str, Any]) -> Dict[str, float]:
     # TODO [abundance instead of intensities]
+    # TODO [correction]
     tmt_quants = {key: 0.0 for key in TMT.keys()}
     for reporter_ion_name, reporter_ion_mass in TMT.items():
         for i, mz in enumerate(spectrum["mz_array"]):
@@ -201,6 +222,9 @@ def __calculate_precursor_intensity_ms1(
     precursor_mz: float,
     spectrum: Dict[str, Any],  # MS1 spectrum
     mz_tol: float,
+    do_deisotope: bool,
+    isotope_tol: float,
+    max_charge: int,
     noise_threshold: float,
     windows: List[Tuple[float, float]],
 ) -> float:
@@ -253,6 +277,8 @@ def __calculate_precursor_intensity_ms1(
         )
     # get highest intensity peak in window
     most_intense_peak = 0.0
+    peaks_in_window_mz = list()
+    peaks_in_window_in = list()
     for i in range(len(spectrum["mz_array"])):
         if (
             spectrum["mz_array"][i] > matching_window[0]
@@ -260,6 +286,57 @@ def __calculate_precursor_intensity_ms1(
         ):
             if spectrum["intensity_array"][i] > most_intense_peak:
                 most_intense_peak = spectrum["intensity_array"][i]
+            peaks_in_window_mz.append(spectrum["mz_array"][i])
+            peaks_in_window_in.append(spectrum["intensity_array"][i])
+    if do_deisotope:
+        # look for precursor isotope peaks
+        charge = None
+        ## determine charge
+        for i in range(1, 11):  # +- 10 peaks are considered for charge determination
+            if precursor_index + i < len(spectrum["mz_array"]):
+                curr_peak_mz = spectrum["mz_array"][precursor_index + i]
+                for c in range(1, max_charge + 1):
+                    if __within_tolerance(
+                        curr_peak_mz, precursor + ISOTOPE / c, isotope_tol
+                    ):
+                        charge = c
+                        break
+            if charge is None:
+                if precursor_index - i >= 0:
+                    curr_peak_mz = spectrum["mz_array"][precursor_index - i]
+                    for c in range(1, max_charge + 1):
+                        if __within_tolerance(
+                            curr_peak_mz, precursor - ISOTOPE / c, isotope_tol
+                        ):
+                            charge = c
+                            break
+            if charge is not None:
+                break
+        # get precursor isotope peaks
+        if charge is not None:
+            for i in range(1, 6):  # +- 5 isotopes are considered for every precursor
+                precursor_isotope_plus_i = precursor + i * (ISOTOPE / charge)
+                if precursor_isotope_plus_i <= matching_window[1]:
+                    for j in range(len(peaks_in_window_mz)):
+                        if peaks_in_window_in[j] / most_intense_peak >= noise_threshold:
+                            if __within_tolerance(
+                                peaks_in_window_mz[j],
+                                precursor_isotope_plus_i,
+                                isotope_tol,
+                            ):
+                                precursor_intensity += peaks_in_window_in[j]
+                                break
+                precursor_isotope_minus_i = precursor - i * (ISOTOPE / charge)
+                if precursor_isotope_minus_i > matching_window[0]:
+                    for j in range(len(peaks_in_window_mz)):
+                        if peaks_in_window_in[j] / most_intense_peak >= noise_threshold:
+                            if __within_tolerance(
+                                peaks_in_window_mz[j],
+                                precursor_isotope_minus_i,
+                                isotope_tol,
+                            ):
+                                precursor_intensity += peaks_in_window_in[j]
+                                break
     # if precursor is noisy, return 0.0
     if precursor_intensity / most_intense_peak < noise_threshold:
         return 0.0
@@ -281,6 +358,9 @@ def __get_ms2_spectrum_by_scannumber(
     precursor_mz: float,
     mz_tol: float,
     retention_time_ms1_window: float,
+    do_deisotope: bool,
+    isotope_tol: float,
+    max_charge: int,
     noise_threshold: float,
     spectra: Dict[str, Any],
     windows: List[Tuple[float, float]],
@@ -314,7 +394,14 @@ def __get_ms2_spectrum_by_scannumber(
         return {"spectrum": None, "purity": None}
     # intensity filter
     purity = __calculate_precursor_intensity_ms1(
-        precursor_mz, ms1, mz_tol, noise_threshold, windows
+        precursor_mz,
+        ms1,
+        mz_tol,
+        do_deisotope,
+        isotope_tol,
+        max_charge,
+        noise_threshold,
+        windows,
     )
     return {"spectrum": spectrum, "purity": purity}
 
@@ -353,6 +440,7 @@ def __annotate_chimerys_result(
     df = pd.read_csv(filename, sep="\t", low_memory=False)
     channels = {key: [] for key in TMT.keys()}
     purities = list()
+    parsed_scannr = list()
     nr_of_missing_ms1 = 0
     nr_of_impure_ids = 0
     for i, row in tqdm(
@@ -376,12 +464,19 @@ def __annotate_chimerys_result(
             float(settings["window_end"]),
             float(settings["window_size"]),
         )
+        # isotope parameters
+        do_deisotope = __get_bool_from_value(settings["deisotope"])
+        isotope_tolerance = float(settings["isotope_tolerance"])
+        max_charge = int(settings["max_charge"])
         # get corresponding MS2 spectrum for identification
         spectrum_purity = __get_ms2_spectrum_by_scannumber(
             scan_nr,
             prec_mz,
             mz_tol,
             rt_window,
+            do_deisotope,
+            isotope_tolerance,
+            max_charge,
             noise_threshold,
             spectra,
             windows,
@@ -397,14 +492,17 @@ def __annotate_chimerys_result(
             purities.append(purity)
             if purity < filter_threshold:
                 nr_of_impure_ids += 1
+            parsed_scannr.append(spectrum["scan_nr"])
         else:
             if quantify:
                 for key in channels.keys():
                     channels[key].append(None)
             purities.append(None)
             nr_of_missing_ms1 += 1
+            parsed_scannr.append(None)
     # update Chimerys result
     df["Co-Isolation Purity"] = purities
+    df["Parsed MS2 Scan Number"] = parsed_scannr
     if quantify:
         for key in channels.keys():
             df[f"Annotated {key}"] = channels[key]
