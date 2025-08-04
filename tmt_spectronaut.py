@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+#
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "pandas",
+#   "tqdm",
+#   "pyteomics[XML]",
+# ]
+# ///
 
 # DIA TMT QUANTIFICATION SPECTRONAUT
 # 2025 (c) Micha Johannes Birklbauer
