@@ -17,9 +17,11 @@
 import tomllib
 import argparse
 import warnings
+import subprocess
 import pandas as pd
 from tqdm import tqdm
 from pyteomics import mzml
+import pyopenms as oms
 
 from typing import Dict
 from typing import List
@@ -27,7 +29,7 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "0.0.10"
+__version = "0.0.11"
 __date = "2025-07-22"
 
 TMT_TOLERANCE = 0.0025
@@ -95,6 +97,48 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "isotope_tolerance": parsed_toml["ISOTOPES"]["isotope_tolerance"],
         "max_charge": parsed_toml["ISOTOPES"]["max_charge"],
     }
+
+
+def __get_consensusXML_df(spectrum_filename: str) -> pd.DataFrame:
+    in_name = spectrum_filename
+    out_name = f"{spectrum_filename}.consensusXML"
+    # see https://openms.de/documentation/html/TOPP_IsobaricAnalyzer.html
+    subprocess.call(
+        [
+            "IsobaricAnalyzer",
+            "-type",
+            "tmt18plex",
+            "-in",
+            in_name,
+            "-out",
+            out_name,
+            "-ini",
+            "tmt18plex_default.ini",
+        ]
+    )
+    # see https://pyopenms.readthedocs.io/en/latest/user_guide/other_ms_data_formats.html#quantiative-data-featurexml-consensusxml
+    consensus_features = oms.ConsensusMap()
+    oms.ConsensusXMLFile().load(out_name, consensus_features)
+    # see https://pyopenms.readthedocs.io/en/latest/user_guide/export_pandas_dataframe.html#consensusmap
+    return consensus_features.get_df()
+
+
+def __get_consensusXML_map(
+    consensusXML_df: pd.DataFrame,
+) -> Dict[float, Dict[float, pd.Series]]:
+    # TODO
+    consensusXML_map = dict()
+    return consensusXML_map
+
+
+def __get_tmt_intensities_oms(
+    spectrum: Dict[str, Any], consensusXML_map: Dict[float, Dict[float, pd.Series]]
+) -> Dict[str, float]:
+    mz_tol = 0.01
+    rt_tol = 0.01
+    tmt_quants = {key: 0.0 for key in TMT.keys()}
+    # TODO
+    return tmt_quants
 
 
 def __get_tmt_intensities(spectrum: Dict[str, Any]) -> Dict[str, float]:
