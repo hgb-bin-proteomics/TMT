@@ -3,8 +3,8 @@
 ## Usage
 
 > [!IMPORTANT]
-> Please make sure that `tmt_chimerys.py`, `tmt_chimerys_dda.py`, `tmt_diann.py` and `tmt_spectronaut.py`
-> are in the same directory when executing!
+> Please make sure that `tmt_chimerys.py`, `tmt_chimerys_dda.py`, `tmt_diann.py`, `tmt_spectronaut.py`,
+> and `tmt18plex_default.ini` are in the same directory when executing!
 
 ### Chimerys DIA
 
