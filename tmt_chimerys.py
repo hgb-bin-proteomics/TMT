@@ -6,6 +6,7 @@
 #   "pandas",
 #   "tqdm",
 #   "pyteomics[XML]",
+#   "pyopenms",
 # ]
 # ///
 
@@ -14,6 +15,7 @@
 # https://github.com/michabirklbauer/
 # micha.birklbauer@gmail.com
 
+import os
 import tomllib
 import argparse
 import warnings
@@ -29,7 +31,7 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "0.0.11"
+__version = "0.0.12"
 __date = "2025-07-22"
 
 TMT_TOLERANCE = 0.0025
@@ -52,6 +54,64 @@ TMT = {
     "TMTpro-134N": 134.148245,
     "TMTpro-134C": 134.154565,
     "TMTpro-135N": 135.151600,
+}
+RESOLUTION_GUI_COLS = {
+    "Resolution",
+    "TIC",
+    "126 Resolution",
+    "126 Intensity",
+    "126 Noise",
+    "127N Resolution",
+    "127N Intensity",
+    "127N Noise",
+    "127C Resolution",
+    "127C Intensity",
+    "127C Noise",
+    "128N Resolution",
+    "128N Intensity",
+    "128N Noise",
+    "128C Resolution",
+    "128C Intensity",
+    "128C Noise",
+    "129N Resolution",
+    "129N Intensity",
+    "129N Noise",
+    "129C Resolution",
+    "129C Intensity",
+    "129C Noise",
+    "130N Resolution",
+    "130N Intensity",
+    "130N Noise",
+    "130C Resolution",
+    "130C Intensity",
+    "130C Noise",
+    "131N Resolution",
+    "131N Intensity",
+    "131N Noise",
+    "131C Resolution",
+    "131C Intensity",
+    "131C Noise",
+    "132N Resolution",
+    "132N Intensity",
+    "132N Noise",
+    "132C Resolution",
+    "132C Intensity",
+    "132C Noise",
+    "133N Resolution",
+    "133N Intensity",
+    "133N Noise",
+    "133C Resolution",
+    "133C Intensity",
+    "133C Noise",
+    "134N Resolution",
+    "134N Intensity",
+    "134N Noise",
+    "134C Resolution",
+    "134C Intesntiy",
+    "134C Noise",
+    "135N Resolution",
+    "135N Intensity",
+    "135N Noise",
 }
 PROTON = 1.007276466812
 ISOTOPE = 1.00335
@@ -142,8 +202,9 @@ def __get_tmt_intensities_oms(
 
 
 def __get_tmt_intensities(spectrum: Dict[str, Any]) -> Dict[str, float]:
-    # TODO [abundance instead of intensities]
-    # TODO [correction]
+    # this does not do any kind of isotope corrections, for that purpose use
+    # __get_tmt_intensities_oms
+    # instead!
     tmt_quants = {key: 0.0 for key in TMT.keys()}
     for reporter_ion_name, reporter_ion_mass in TMT.items():
         for i, mz in enumerate(spectrum["mz_array"]):
@@ -151,6 +212,47 @@ def __get_tmt_intensities(spectrum: Dict[str, Any]) -> Dict[str, float]:
                 tmt_quants[reporter_ion_name] += spectrum["intensity_array"][i]
                 break
     return tmt_quants
+
+
+def __get_resolution_gui_map(filename: str) -> Dict[str, Dict[int, pd.Series]]:
+    resolution_gui_map = dict()
+    df = pd.read_csv(filename, low_memory=False)
+    for i, row in tqdm(
+        df.iterrows(), total=df.shape[0], desc="Reading Resolution GUI output..."
+    ):
+        _head, tail = os.path.split(str(row["Raw File"]).strip())
+        spectrum_filename = tail.strip()
+        spectrum_scannr = int(row["MS2/MS3 Scan"])
+        if spectrum_filename in resolution_gui_map:
+            if spectrum_scannr in resolution_gui_map[spectrum_filename]:
+                warnings.warn(
+                    RuntimeWarning(
+                        f"Found duplicate MS2 scan with scan number {spectrum_scannr} in Resolution GUI output! Using first MS2 scan!"
+                    )
+                )
+            else:
+                resolution_gui_map[spectrum_filename][spectrum_scannr] = row
+        else:
+            resolution_gui_map[spectrum_filename] = {spectrum_scannr: row}
+    return resolution_gui_map
+
+
+def __get_resolution_gui_values(
+    spectrum: Dict[str, Any],
+    resolution_gui_map: Dict[str, Dict[int, pd.Series]],
+    spectrum_filename: str,
+) -> Dict[str, float]:
+    sf = (
+        spectrum_filename[:-5] + ".raw"
+        if spectrum_filename[-5:].lower() == ".mzml"
+        else spectrum_filename
+    )
+    sn = spectrum["scan_nr"]
+    row = resolution_gui_map[sf][sn]
+    data = dict()
+    for col in RESOLUTION_GUI_COLS:
+        data[f"RESGUI_{col}"] = row[col]
+    return data
 
 
 def __get_key(mass: float) -> int:
