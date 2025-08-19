@@ -25,14 +25,15 @@ from tqdm import tqdm
 from pyteomics import mzml
 import pyopenms as oms
 
+from typing import Optional
 from typing import Dict
 from typing import List
 from typing import Tuple
 from typing import Any
 
 
-__version = "0.0.12"
-__date = "2025-07-22"
+__version = "1.0.0"
+__date = "2025-08-19"
 
 TMT_TOLERANCE = 0.0025
 TMT = {
@@ -55,7 +56,27 @@ TMT = {
     "TMTpro-134C": 134.154565,
     "TMTpro-135N": 135.151600,
 }
-RESOLUTION_GUI_COLS = {
+TMT_OMS = {
+    "TMTpro-126": "tmt18plex_126",
+    "TMTpro-127N": "tmt18plex_127N",
+    "TMTpro-127C": "tmt18plex_127C",
+    "TMTpro-128N": "tmt18plex_128N",
+    "TMTpro-128C": "tmt18plex_128C",
+    "TMTpro-129N": "tmt18plex_129N",
+    "TMTpro-129C": "tmt18plex_129C",
+    "TMTpro-130N": "tmt18plex_130N",
+    "TMTpro-130C": "tmt18plex_130C",
+    "TMTpro-131N": "tmt18plex_131N",
+    "TMTpro-131C": "tmt18plex_131C",
+    "TMTpro-132N": "tmt18plex_132N",
+    "TMTpro-132C": "tmt18plex_132C",
+    "TMTpro-133N": "tmt18plex_133N",
+    "TMTpro-133C": "tmt18plex_133C",
+    "TMTpro-134N": "tmt18plex_134N",
+    "TMTpro-134C": "tmt18plex_134C",
+    "TMTpro-135N": "tmt18plex_135N",
+}
+RESOLUTION_GUI_COLS = [
     "Resolution",
     "TIC",
     "126 Resolution",
@@ -112,7 +133,7 @@ RESOLUTION_GUI_COLS = {
     "135N Resolution",
     "135N Intensity",
     "135N Noise",
-}
+]
 PROTON = 1.007276466812
 ISOTOPE = 1.00335
 STRATEGY = 1
@@ -135,6 +156,10 @@ def __get_bool_from_value(value: Any) -> bool:
 
 def __get_uncharged_mass_from_exp_mass(mz: float, charge: int) -> float:
     return mz * charge - PROTON * charge
+
+
+def __get_key(mass: float) -> int:
+    return int(round(mass * 10000))
 
 
 def __read_settings(toml: str) -> Dict[str, Any]:
@@ -185,19 +210,63 @@ def __get_consensusXML_df(spectrum_filename: str) -> pd.DataFrame:
 
 def __get_consensusXML_map(
     consensusXML_df: pd.DataFrame,
-) -> Dict[float, Dict[float, pd.Series]]:
-    # TODO
+) -> Dict[int, Dict[int, pd.Series]]:
     consensusXML_map = dict()
+    for i, row in tqdm(
+        consensusXML_df, total=consensusXML_df.shape[0], desc="Reading consensusXML..."
+    ):
+        mz = __get_key(row["mz"])
+        rt = __get_key(row["RT"])
+        if mz not in consensusXML_map:
+            consensusXML_map[mz] = {rt: row}
+        else:
+            if rt not in consensusXML_map[mz]:
+                consensusXML_map[mz][rt] = row
+            else:
+                raise RuntimeError(
+                    f"Found duplicate entry with m/z {row['mz']} and rt {row['RT']}!"
+                )
     return consensusXML_map
 
 
 def __get_tmt_intensities_oms(
-    spectrum: Dict[str, Any], consensusXML_map: Dict[float, Dict[float, pd.Series]]
+    spectrum: Dict[str, Any], consensusXML_map: Dict[int, Dict[int, pd.Series]]
 ) -> Dict[str, float]:
-    mz_tol = 0.01
-    rt_tol = 0.01
+    mz_tol = 0.01  # Dalton, m/z
+    rt_tol = 1.0  # seconds
+    mz = __get_key(spectrum["precursor"])
+    rt = __get_key(spectrum["rt"])
+    mz_tol = __get_key(mz_tol)
+    rt_tol = __get_key(rt_tol)
+    row = None
+    for i in range(mz_tol):
+        if (mz - i) in consensusXML_map:
+            for j in range(rt_tol):
+                if (rt - j) in consensusXML_map[mz - i]:
+                    row = consensusXML_map[mz - i][rt - j]
+                    break
+                if (rt + j) in consensusXML_map[mz - i]:
+                    row = consensusXML_map[mz - i][rt + j]
+                    break
+            if row is not None:
+                break
+        if (mz + i) in consensusXML_map:
+            for j in range(rt_tol):
+                if (rt - j) in consensusXML_map[mz + i]:
+                    row = consensusXML_map[mz + i][rt - j]
+                    break
+                if (rt + j) in consensusXML_map[mz + i]:
+                    row = consensusXML_map[mz + i][rt + j]
+                    break
+            if row is not None:
+                break
+    if row is None:
+        raise RuntimeError(
+            f"Could not find spectrum with m/z {spectrum['precursor']} and rt {spectrum['rt']} in consensusXML!"
+        )
     tmt_quants = {key: 0.0 for key in TMT.keys()}
-    # TODO
+    for k, v in TMT_OMS:
+        tmt_quants[k] += row[v]
     return tmt_quants
 
 
@@ -253,10 +322,6 @@ def __get_resolution_gui_values(
     for col in RESOLUTION_GUI_COLS:
         data[f"RESGUI_{col}"] = row[col]
     return data
-
-
-def __get_key(mass: float) -> int:
-    return int(round(mass * 10000))
 
 
 def __parse_scan_nr_from_id(id: str) -> int:
@@ -582,18 +647,17 @@ def __get_windows(
 # currently based on the PSM table
 def __annotate_chimerys_result(
     filename: str,
+    spectrum_filename: str,
     spectra: Dict[str, Any],
     settings: Dict[str, Any],
-    quantify: bool = False,
+    consensusXML_map: Optional[Dict[int, Dict[int, pd.Series]]] = None,
+    resolution_gui_map: Optional[Dict[str, Dict[int, pd.Series]]] = None,
 ) -> pd.DataFrame:
-    if quantify:
-        print("Quantification enabled!")
-    else:
-        print("Quantification disabled! Only calculating co-isolation purity!")
     # spectra should be given by __read_spectra_by_scannumber
     # settings should be given by __read_settings
     df = pd.read_csv(filename, sep="\t", low_memory=False)
     channels = {key: [] for key in TMT.keys()}
+    resolution = {f"RESGUI_{key}": [] for key in RESOLUTION_GUI_COLS}
     purities = list()
     parsed_scannr = list()
     nr_of_missing_ms1 = 0
@@ -640,27 +704,39 @@ def __annotate_chimerys_result(
         purity = spectrum_purity["purity"]
         # if a spectrum is found -> purity and quantify
         if spectrum is not None:
-            if quantify:
+            if consensusXML_map is None:
                 tmt_quants = __get_tmt_intensities(spectrum)
-                for key in channels.keys():
-                    channels[key].append(tmt_quants[key])
+            else:
+                tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
+            for key in channels.keys():
+                channels[key].append(tmt_quants[key])
+            if resolution_gui_map is None:
+                for key in resolution.keys():
+                    resolution[key].append(None)
+            else:
+                resolution_values = __get_resolution_gui_values(
+                    spectrum, resolution_gui_map, spectrum_filename
+                )
+                for key in resolution.keys():
+                    resolution[key].append(resolution_values[key])
             purities.append(purity)
             if purity < filter_threshold:
                 nr_of_impure_ids += 1
             parsed_scannr.append(spectrum["scan_nr"])
         else:
-            if quantify:
-                for key in channels.keys():
-                    channels[key].append(None)
+            for key in channels.keys():
+                channels[key].append(None)
             purities.append(None)
             nr_of_missing_ms1 += 1
             parsed_scannr.append(None)
     # update Chimerys result
     df["Co-Isolation Purity"] = purities
     df["Parsed MS2 Scan Number"] = parsed_scannr
-    if quantify:
-        for key in channels.keys():
-            df[f"Annotated {key}"] = channels[key]
+    for key in channels.keys():
+        df[f"Annotated {key}"] = channels[key]
+    if resolution_gui_map is not None:
+        for key in resolution:
+            df[key] = resolution[key]
     print(f"Total number of identifications: {df.shape[0]}")
     print(f"Total number of identifications with impure precursors: {nr_of_impure_ids}")
     print(
@@ -700,6 +776,15 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
     )
     parser.add_argument(
+        "-r",
+        "--resolution",
+        dest="resolution",
+        required=False,
+        default=None,
+        help="Path/name of the resolution.csv file from the Resolution GUI file.",
+        type=str,
+    )
+    parser.add_argument(
         "-w",
         "--window",
         dest="window",
@@ -708,12 +793,12 @@ def main(argv=None) -> pd.DataFrame:
         type=float,
     )
     parser.add_argument(
-        "-q",
-        "--quantify",
-        dest="quantify",
+        "-n",
+        "--native",
+        dest="native",
         default=False,
         action="store_true",
-        help="Enables separate TMT quantification.",
+        help="Use native quantification instead of OpenMS quantification which is used by default.",
     )
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
@@ -722,7 +807,21 @@ def main(argv=None) -> pd.DataFrame:
         settings["window_size"] = float(args.window)
     print(settings)
     spectra = __read_spectra_by_scannumber(args.spectra)
-    df = __annotate_chimerys_result(args.chimerys, spectra, settings, args.quantify)
+    consensusXML_map = None
+    if not args.native:
+        consensusXML_df = __get_consensusXML_df(args.spectra)
+        consensusXML_map = __get_consensusXML_map(consensusXML_df)
+    resolution_gui_map = None
+    if args.resolution is not None:
+        resolution_gui_map = __get_resolution_gui_map(args.resolution)
+    df = __annotate_chimerys_result(
+        filename=args.chimerys,
+        spectrum_filename=args.spectra,
+        spectra=spectra,
+        settings=settings,
+        consensusXML_map=consensusXML_map,
+        resolution_gui_map=resolution_gui_map,
+    )
     df.to_csv(
         args.chimerys.split(".txt")[0] + "_purity_tmt_quant.txt",
         sep="\t",
