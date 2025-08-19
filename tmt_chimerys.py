@@ -32,7 +32,7 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "1.0.0"
+__version = "1.0.1"
 __date = "2025-08-19"
 
 TMT_TOLERANCE = 0.0025
@@ -726,6 +726,8 @@ def __annotate_chimerys_result(
         else:
             for key in channels.keys():
                 channels[key].append(None)
+            for key in resolution.keys():
+                resolution[key].append(None)
             purities.append(None)
             nr_of_missing_ms1 += 1
             parsed_scannr.append(None)
