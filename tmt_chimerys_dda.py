@@ -6,6 +6,7 @@
 #   "pandas",
 #   "tqdm",
 #   "pyteomics[XML]",
+#   "pyopenms",
 # ]
 # ///
 
@@ -19,20 +20,27 @@ import warnings
 import pandas as pd
 from tqdm import tqdm
 
+from typing import Optional
 from typing import Dict
 from typing import Any
 
 from tmt_chimerys import TMT
+from tmt_chimerys import RESOLUTION_GUI_COLS
 from tmt_chimerys import __get_bool_from_value
 from tmt_chimerys import __read_settings
 from tmt_chimerys import __get_tmt_intensities
+from tmt_chimerys import __get_tmt_intensities_oms
+from tmt_chimerys import __get_consensusXML_df
+from tmt_chimerys import __get_consensusXML_map
+from tmt_chimerys import __get_resolution_gui_map
+from tmt_chimerys import __get_resolution_gui_values
 from tmt_chimerys import __read_spectra_by_scannumber
 from tmt_chimerys import __get_key
 from tmt_chimerys import __within_tolerance
 from tmt_chimerys import __check_mz_in_ms1
 
-__version = "0.0.10"
-__date = "2025-07-22"
+__version = "1.0.0"
+__date = "2025-08-19"
 
 ISOTOPE = 1.00335
 STRATEGY = 1
@@ -220,18 +228,17 @@ def __get_ms2_spectrum_by_scannumber(
 # currently based on the PSM table
 def __annotate_chimerys_result(
     filename: str,
+    spectrum_filename: str,
     spectra: Dict[str, Any],
     settings: Dict[str, Any],
-    quantify: bool = False,
+    consensusXML_map: Optional[Dict[int, Dict[int, pd.Series]]] = None,
+    resolution_gui_map: Optional[Dict[str, Dict[int, pd.Series]]] = None,
 ) -> pd.DataFrame:
-    if quantify:
-        print("Quantification enabled!")
-    else:
-        print("Quantification disabled! Only calculating co-isolation purity!")
     # spectra should be given by __read_spectra_by_scannumber
     # settings should be given by __read_settings
     df = pd.read_csv(filename, sep="\t", low_memory=False)
     channels = {key: [] for key in TMT.keys()}
+    resolution = {f"RESGUI_{key}": [] for key in RESOLUTION_GUI_COLS}
     purities = list()
     parsed_scannr = list()
     nr_of_missing_ms1 = 0
@@ -274,27 +281,41 @@ def __annotate_chimerys_result(
         purity = spectrum_purity["purity"]
         # if a spectrum is found -> purity and quantify
         if spectrum is not None:
-            if quantify:
+            if consensusXML_map is None:
                 tmt_quants = __get_tmt_intensities(spectrum)
-                for key in channels.keys():
-                    channels[key].append(tmt_quants[key])
+            else:
+                tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
+            for key in channels.keys():
+                channels[key].append(tmt_quants[key])
+            if resolution_gui_map is None:
+                for key in resolution.keys():
+                    resolution[key].append(None)
+            else:
+                resolution_values = __get_resolution_gui_values(
+                    spectrum, resolution_gui_map, spectrum_filename
+                )
+                for key in resolution.keys():
+                    resolution[key].append(resolution_values[key])
             purities.append(purity)
             if purity < filter_threshold:
                 nr_of_impure_ids += 1
             parsed_scannr.append(spectrum["scan_nr"])
         else:
-            if quantify:
-                for key in channels.keys():
-                    channels[key].append(None)
+            for key in channels.keys():
+                channels[key].append(None)
+            for key in resolution.keys():
+                resolution[key].append(None)
             purities.append(None)
             nr_of_missing_ms1 += 1
             parsed_scannr.append(None)
     # update Chimerys result
     df["Co-Isolation Purity"] = purities
     df["Parsed MS2 Scan Number"] = parsed_scannr
-    if quantify:
-        for key in channels.keys():
-            df[f"Annotated {key}"] = channels[key]
+    for key in channels.keys():
+        df[f"Annotated {key}"] = channels[key]
+    if resolution_gui_map is not None:
+        for key in resolution:
+            df[key] = resolution[key]
     print(f"Total number of identifications: {df.shape[0]}")
     print(f"Total number of identifications with impure precursors: {nr_of_impure_ids}")
     print(
@@ -334,6 +355,15 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
     )
     parser.add_argument(
+        "-r",
+        "--resolution",
+        dest="resolution",
+        required=False,
+        default=None,
+        help="Path/name of the resolution.csv file from the Resolution GUI file.",
+        type=str,
+    )
+    parser.add_argument(
         "-w",
         "--window",
         dest="window",
@@ -342,12 +372,12 @@ def main(argv=None) -> pd.DataFrame:
         type=float,
     )
     parser.add_argument(
-        "-q",
-        "--quantify",
-        dest="quantify",
+        "-n",
+        "--native",
+        dest="native",
         default=False,
         action="store_true",
-        help="Enables separate TMT quantification.",
+        help="Use native quantification instead of OpenMS quantification which is used by default.",
     )
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
@@ -356,7 +386,21 @@ def main(argv=None) -> pd.DataFrame:
         settings["window_size"] = float(args.window)
     print(settings)
     spectra = __read_spectra_by_scannumber(args.spectra)
-    df = __annotate_chimerys_result(args.chimerys, spectra, settings, args.quantify)
+    consensusXML_map = None
+    if not args.native:
+        consensusXML_df = __get_consensusXML_df(args.spectra)
+        consensusXML_map = __get_consensusXML_map(consensusXML_df)
+    resolution_gui_map = None
+    if args.resolution is not None:
+        resolution_gui_map = __get_resolution_gui_map(args.resolution)
+    df = __annotate_chimerys_result(
+        filename=args.chimerys,
+        spectrum_filename=args.spectra,
+        spectra=spectra,
+        settings=settings,
+        consensusXML_map=consensusXML_map,
+        resolution_gui_map=resolution_gui_map,
+    )
     df.to_csv(
         args.chimerys.split(".txt")[0] + "_purity_tmt_quant.txt",
         sep="\t",
