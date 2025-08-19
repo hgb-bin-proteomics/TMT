@@ -6,6 +6,7 @@
 #   "pandas",
 #   "tqdm",
 #   "pyteomics[XML]",
+#   "pyopenms",
 # ]
 # ///
 
@@ -17,6 +18,8 @@
 import os
 import glob
 from tmt_chimerys import main as tmt_chimerys
+
+RESOLUTION_FILE = "resolution.csv"
 
 
 def main():
@@ -32,7 +35,18 @@ def main():
         print(f"window: {w}")
         # call tmt chimerys script
         _ = tmt_chimerys(
-            ["-i", f"{f}_PSMs.txt", "-s", f"{f}.mzML", "-c", "config.toml", "-w", w]
+            [
+                "-i",
+                f"{f}_PSMs.txt",
+                "-s",
+                f"{f}.mzML",
+                "-c",
+                "config.toml",
+                "-r",
+                RESOLUTION_FILE,
+                "-w",
+                w,
+            ]
         )
         # console log
         print("---------- FINISHED ANALYSIS FOR ONE FILE ----------")
