@@ -32,8 +32,8 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "1.0.1"
-__date = "2025-08-19"
+__version = "1.0.2"
+__date = "2025-08-20"
 
 TMT_TOLERANCE = 0.0025
 TMT = {
@@ -213,10 +213,12 @@ def __get_consensusXML_map(
 ) -> Dict[int, Dict[int, pd.Series]]:
     consensusXML_map = dict()
     for i, row in tqdm(
-        consensusXML_df, total=consensusXML_df.shape[0], desc="Reading consensusXML..."
+        consensusXML_df.iterrows(),
+        total=consensusXML_df.shape[0],
+        desc="Reading consensusXML...",
     ):
-        mz = __get_key(row["mz"])
-        rt = __get_key(row["RT"])
+        mz = __get_key(float(row["mz"]))
+        rt = __get_key(float(row["RT"]))
         if mz not in consensusXML_map:
             consensusXML_map[mz] = {rt: row}
         else:
@@ -260,12 +262,10 @@ def __get_tmt_intensities_oms(
                     break
             if row is not None:
                 break
-    if row is None:
-        raise RuntimeError(
-            f"Could not find spectrum with m/z {spectrum['precursor']} and rt {spectrum['rt']} in consensusXML!"
-        )
     tmt_quants = {key: 0.0 for key in TMT.keys()}
-    for k, v in TMT_OMS:
+    if row is None:
+        return tmt_quants
+    for k, v in TMT_OMS.items():
         tmt_quants[k] += row[v]
     return tmt_quants
 
