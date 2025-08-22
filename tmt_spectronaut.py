@@ -483,7 +483,7 @@ def main(argv=None) -> pd.DataFrame:
         settings=settings,
         consensusXML_map=consensusXML_map,
         resolution_gui_map=resolution_gui_map,
-        verbose=args.verbose,
+        verbose=int(args.verbose),
     )
     df.to_csv(
         args.spectronaut.split(".csv")[0] + "_purity_tmt_quant.csv",
