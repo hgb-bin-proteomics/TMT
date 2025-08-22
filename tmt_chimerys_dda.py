@@ -39,8 +39,8 @@ from tmt_chimerys import __get_key
 from tmt_chimerys import __within_tolerance
 from tmt_chimerys import __check_mz_in_ms1
 
-__version = "1.0.0"
-__date = "2025-08-19"
+__version = "1.0.1"
+__date = "2025-08-22"
 
 ISOTOPE = 1.00335
 STRATEGY = 1
@@ -56,7 +56,7 @@ def __calculate_precursor_intensity_ms1(
     max_charge: int,
     noise_threshold: float,
     window_size: float,
-) -> float:
+) -> float | None:
     precursor = None
     precursor_index = None
     precursor_intensity = None
@@ -80,7 +80,7 @@ def __calculate_precursor_intensity_ms1(
                         precursor_intensity = spectrum["intensity_array"][i]
                 elif STRATEGY == 2:
                     # do not use identification
-                    return -1.0
+                    return None
                 elif STRATEGY == 3:
                     # use closest precursor
                     raise NotImplementedError()
@@ -90,7 +90,12 @@ def __calculate_precursor_intensity_ms1(
                     )
     # if no precursor is found an error is raised
     if precursor is None or precursor_index is None or precursor_intensity is None:
-        raise RuntimeError("Could not find precursor in MS1 spectrum.")
+        warnings.warn(
+            RuntimeWarning(
+                f"Could not find precursor in MS1 spectrum with scan number {spectrum['scan_nr']}."
+            )
+        )
+        return None
     # find the corresponding m/z window that the precursor is in
     matching_window = (precursor - window_size / 2.0, precursor + window_size / 2.0)
     # get highest intensity peak in window
@@ -209,7 +214,7 @@ def __get_ms2_spectrum_by_scannumber(
                 f"Could not find a suitable MS1 spectrum for precursor m/z {precursor_mz} and retention time {spectrum['rt']}. MS2 scan: {scan_nr}"
             )
         )
-        return {"spectrum": None, "purity": None}
+        return {"spectrum": spectrum, "purity": None}
     # intensity filter
     purity = __calculate_precursor_intensity_ms1(
         precursor_mz,
@@ -280,34 +285,27 @@ def __annotate_chimerys_result(
         spectrum = spectrum_purity["spectrum"]
         purity = spectrum_purity["purity"]
         # if a spectrum is found -> purity and quantify
-        if spectrum is not None:
-            if consensusXML_map is None:
-                tmt_quants = __get_tmt_intensities(spectrum)
-            else:
-                tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
-            for key in channels.keys():
-                channels[key].append(tmt_quants[key])
-            if resolution_gui_map is None:
-                for key in resolution.keys():
-                    resolution[key].append(None)
-            else:
-                resolution_values = __get_resolution_gui_values(
-                    spectrum, resolution_gui_map, spectrum_filename
-                )
-                for key in resolution.keys():
-                    resolution[key].append(resolution_values[key])
-            purities.append(purity)
-            if purity < filter_threshold:
-                nr_of_impure_ids += 1
-            parsed_scannr.append(spectrum["scan_nr"])
+        if consensusXML_map is None:
+            tmt_quants = __get_tmt_intensities(spectrum)
         else:
-            for key in channels.keys():
-                channels[key].append(None)
+            tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
+        for key in channels.keys():
+            channels[key].append(tmt_quants[key])
+        if resolution_gui_map is None:
             for key in resolution.keys():
                 resolution[key].append(None)
-            purities.append(None)
+        else:
+            resolution_values = __get_resolution_gui_values(
+                spectrum, resolution_gui_map, spectrum_filename
+            )
+            for key in resolution.keys():
+                resolution[key].append(resolution_values[key])
+        purities.append(purity)
+        if purity is None:
             nr_of_missing_ms1 += 1
-            parsed_scannr.append(None)
+        if purity is not None and purity < filter_threshold:
+            nr_of_impure_ids += 1
+        parsed_scannr.append(spectrum["scan_nr"])
     # update Chimerys result
     df["Co-Isolation Purity"] = purities
     df["Parsed MS2 Scan Number"] = parsed_scannr
