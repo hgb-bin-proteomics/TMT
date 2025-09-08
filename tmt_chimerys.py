@@ -32,8 +32,8 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "1.0.3"
-__date = "2025-08-22"
+__version = "1.0.4"
+__date = "2025-09-08"
 
 TMT_TOLERANCE = 0.0025
 TMT = {
@@ -137,6 +137,80 @@ RESOLUTION_GUI_COLS = [
 PROTON = 1.007276466812
 ISOTOPE = 1.00335
 STRATEGY = 1
+
+
+def __annotate_chimerys_protein_table(
+    protein_table: pd.DataFrame,
+    psm_table: pd.DataFrame,
+    min_chimerys_coefficient: float,
+    min_avg_reporter_sn: float,
+    min_reporter_res: float,
+    min_purity: float,
+) -> pd.DataFrame:
+    has_resolution = "RESGUI_Resolution" in psm_table.columns.tolist()
+    psms_by_proteins = dict()
+    for i, psm in tqdm(
+        psm_table.iterrows(), total=psm_table.shape[0], desc="Filtering PSMs..."
+    ):
+        chimerys_coefficient = float(psm["Normalized CHIMERYS Coefficient"])
+        avg_reporter_sn = float(psm["Average Reporter S/N"])
+        purity = float(psm["Co-Isolation Purity"])
+        proteins = [
+            protein.strip() for protein in str(psm["Protein Accessions"]).split(";")
+        ]
+        protein = proteins[0]
+        # remove ambiguous PSMs / shared peptides
+        if len(proteins) != 1:
+            continue
+        # remove PSMs with Chimerys Coefficient < threshold
+        if (
+            pd.isna(chimerys_coefficient)
+            or chimerys_coefficient < min_chimerys_coefficient
+        ):
+            continue
+        # remove PSMs with too low average reporter S/N
+        if pd.isna(avg_reporter_sn) or avg_reporter_sn < min_avg_reporter_sn:
+            continue
+        # remove PSMs below purity threshold
+        if pd.isna(purity) or purity < min_purity:
+            continue
+        if protein in psms_by_proteins:
+            psms_by_proteins[protein].append(psm)
+        else:
+            psms_by_proteins[protein] = [psm]
+    channels = {key: [] for key in TMT.keys()}
+    for i, protein in tqdm(
+        protein_table.iterrows(),
+        total=protein_table.shape[0],
+        desc="Annotating protein abundances...",
+    ):
+        accession = [x.strip() for x in str(protein["Accession"]).split(";")]
+        if len(accession) != 1:
+            raise RuntimeError(
+                f"Found more then one accession in column 'Accession' in protein table row {i}!"
+            )
+        accession = accession[0]
+        psms_for_accession = psms_by_proteins[accession]
+        tmt_quants = {key: 0.0 for key in TMT.keys()}
+        for psm in psms_for_accession:
+            if has_resolution:
+                for c in TMT.keys():
+                    resgui_key = "RESGUI_" + c.split("-")[1] + " Resolution"
+                    if (
+                        pd.isna(float(psm[resgui_key]))
+                        or float(psm[resgui_key]) < min_reporter_res
+                    ):
+                        tmt_quants[c] += 0.0
+                    else:
+                        tmt_quants[c] += psm[f"Annotated {c}"]
+            else:
+                for c in TMT.keys():
+                    tmt_quants[c] += psm[f"Annotated {c}"]
+        for k, v in tmt_quants.items():
+            channels[k].append(v)
+    for key in channels.keys():
+        protein_table[f"Annotated protein-level {key}"] = channels[key]
+    return protein_table
 
 
 def __get_bool_from_value(value: Any) -> bool:
