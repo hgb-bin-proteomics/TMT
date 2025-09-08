@@ -27,3 +27,13 @@ max_charge = 6
 total_intensity_threshold = 0.7
 # minimum relative intensity threshold compared to most intense peak in window to not be considered noise
 noise_threshold = 0.1
+
+[PROTEIN]
+# Normalized Chimerys Coefficient Threshold, anything below will be ignored
+min_chimerys_coefficient = 1.0
+# minimum average reporter S/N for a PSM to be considered for aggregation
+min_avg_reporter_sn = 10.0
+# minimum reporter resolution to be considered for aggregation
+min_reporter_res = 45000.0
+# minimum purity for a PSM to be considered for aggregation
+min_purity = 0.7
