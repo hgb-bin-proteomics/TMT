@@ -139,7 +139,7 @@ ISOTOPE = 1.00335
 STRATEGY = 1
 
 
-def __annotate_chimerys_protein_table(
+def __annotate_chimerys_protein_df(
     protein_table: pd.DataFrame,
     psm_table: pd.DataFrame,
     min_chimerys_coefficient: float,
@@ -213,6 +213,26 @@ def __annotate_chimerys_protein_table(
     return protein_table
 
 
+def __annotate_chimerys_protein_table(
+    protein_table: str,
+    psm_table: pd.DataFrame,
+    settings: Dict[str, Any],
+) -> pd.DataFrame:
+    protein_df = pd.read_csv(protein_table, sep="\t")
+    min_chimerys_coefficient = float(settings["min_chimerys_coefficient"])
+    min_avg_reporter_sn = float(settings["min_avg_reporter_sn"])
+    min_reporter_res = float(settings["min_reporter_res"])
+    min_purity = float(settings["min_purity"])
+    return __annotate_chimerys_protein_df(
+        protein_df,
+        psm_table,
+        min_chimerys_coefficient=min_chimerys_coefficient,
+        min_avg_reporter_sn=min_avg_reporter_sn,
+        min_reporter_res=min_reporter_res,
+        min_purity=min_purity,
+    )
+
+
 def __get_bool_from_value(value: Any) -> bool:
     if isinstance(value, bool):
         return value
@@ -255,6 +275,10 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "deisotope": parsed_toml["ISOTOPES"]["consider_precursor_isotopes"],
         "isotope_tolerance": parsed_toml["ISOTOPES"]["isotope_tolerance"],
         "max_charge": parsed_toml["ISOTOPES"]["max_charge"],
+        "min_chimerys_coefficient": parsed_toml["PROTEIN"]["min_chimerys_coefficient"],
+        "min_avg_reporter_sn": parsed_toml["PROTEIN"]["min_avg_reporter_sn"],
+        "min_reporter_res": parsed_toml["PROTEIN"]["min_reporter_res"],
+        "min_purity": parsed_toml["PROTEIN"]["min_purity"],
     }
 
 
@@ -829,7 +853,7 @@ def main(argv=None) -> pd.DataFrame:
         "--chimerys",
         dest="chimerys",
         required=True,
-        help="Path/name of the Chimerys result file in tab-separated .txt format.",
+        help="Path/name of the Chimerys PSM result file in tab-separated .txt format.",
         type=str,
     )
     parser.add_argument(
@@ -846,6 +870,15 @@ def main(argv=None) -> pd.DataFrame:
         dest="config",
         required=True,
         help="Path/name of the config file.",
+        type=str,
+    )
+    parser.add_argument(
+        "-p",
+        "--proteins",
+        dest="proteins",
+        required=False,
+        default=None,
+        help="Path/name of the Chimerys protein result file in tab-separated .txt format.",
         type=str,
     )
     parser.add_argument(
@@ -900,6 +933,13 @@ def main(argv=None) -> pd.DataFrame:
         sep="\t",
         index=False,
     )
+    if args.proteins is not None:
+        proteins_df = __annotate_chimerys_protein_table(args.proteins, df, settings)
+        proteins_df.to_csv(
+            args.proteins.split(".txt")[0] + "_purity_tmt_quant.txt",
+            sep="\t",
+            index=False,
+        )
     return df
 
 
