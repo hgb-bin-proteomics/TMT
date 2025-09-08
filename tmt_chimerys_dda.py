@@ -38,9 +38,10 @@ from tmt_chimerys import __read_spectra_by_scannumber
 from tmt_chimerys import __get_key
 from tmt_chimerys import __within_tolerance
 from tmt_chimerys import __check_mz_in_ms1
+from tmt_chimerys import __annotate_chimerys_protein_table
 
-__version = "1.0.1"
-__date = "2025-08-22"
+__version = "1.0.2"
+__date = "2025-09-08"
 
 ISOTOPE = 1.00335
 STRATEGY = 1
@@ -353,6 +354,15 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
     )
     parser.add_argument(
+        "-p",
+        "--proteins",
+        dest="proteins",
+        required=False,
+        default=None,
+        help="Path/name of the Chimerys protein result file in tab-separated .txt format.",
+        type=str,
+    )
+    parser.add_argument(
         "-r",
         "--resolution",
         dest="resolution",
@@ -404,6 +414,13 @@ def main(argv=None) -> pd.DataFrame:
         sep="\t",
         index=False,
     )
+    if args.proteins is not None:
+        proteins_df = __annotate_chimerys_protein_table(args.proteins, df, settings)
+        proteins_df.to_csv(
+            args.proteins.split(".txt")[0] + "_purity_tmt_quant.txt",
+            sep="\t",
+            index=False,
+        )
     return df
 
 
