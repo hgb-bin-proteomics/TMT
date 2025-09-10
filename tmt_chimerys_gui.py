@@ -849,6 +849,18 @@ def __annotate_chimerys_result(
 @Gooey(
     encoding="utf-8",
     program_name="TMT Chimerys",
+    menu=[
+        {
+            "name": "Help",
+            "items": [
+                {
+                    "type": "Link",
+                    "menuTitle": "Project Page",
+                    "url": "https://github.com/hgb-bin-proteomics/TMT/",
+                }
+            ],
+        }
+    ],
 )
 def main(argv=None) -> pd.DataFrame:
     parser = GooeyParser(
