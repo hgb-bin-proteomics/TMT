@@ -32,8 +32,8 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "1.0.3"
-__date = "2025-08-22"
+__version = "1.0.4"
+__date = "2025-09-08"
 
 TMT_TOLERANCE = 0.0025
 TMT = {
@@ -139,6 +139,106 @@ ISOTOPE = 1.00335
 STRATEGY = 1
 
 
+def __annotate_chimerys_protein_df(
+    protein_table: pd.DataFrame,
+    psm_table: pd.DataFrame,
+    min_chimerys_coefficient: float,
+    min_avg_reporter_sn: float,
+    min_reporter_res: float,
+    min_purity: float,
+) -> pd.DataFrame:
+    has_resolution = "RESGUI_Resolution" in psm_table.columns.tolist()
+    psms_by_proteins = dict()
+    for i, psm in tqdm(
+        psm_table.iterrows(), total=psm_table.shape[0], desc="Filtering PSMs..."
+    ):
+        chimerys_coefficient = float(psm["Normalized CHIMERYS Coefficient"])
+        avg_reporter_sn = float(psm["Average Reporter S/N"])
+        purity = float(psm["Co-Isolation Purity"])
+        proteins = [
+            protein.strip() for protein in str(psm["Protein Accessions"]).split(";")
+        ]
+        protein = proteins[0]
+        # remove ambiguous PSMs / shared peptides
+        if len(proteins) != 1:
+            continue
+        # remove PSMs with Chimerys Coefficient < threshold
+        if (
+            pd.isna(chimerys_coefficient)
+            or chimerys_coefficient < min_chimerys_coefficient
+        ):
+            continue
+        # remove PSMs with too low average reporter S/N
+        if pd.isna(avg_reporter_sn) or avg_reporter_sn < min_avg_reporter_sn:
+            continue
+        # remove PSMs below purity threshold
+        if pd.isna(purity) or purity < min_purity:
+            continue
+        if protein in psms_by_proteins:
+            psms_by_proteins[protein].append(psm)
+        else:
+            psms_by_proteins[protein] = [psm]
+    channels = {key: [] for key in TMT.keys()}
+    for i, protein in tqdm(
+        protein_table.iterrows(),
+        total=protein_table.shape[0],
+        desc="Annotating protein abundances...",
+    ):
+        accession = [x.strip() for x in str(protein["Accession"]).split(";")]
+        if len(accession) != 1:
+            raise RuntimeError(
+                f"Found more then one accession in column 'Accession' in protein table row {i}!"
+            )
+        accession = accession[0]
+        psms_for_accession = list()
+        if accession in psms_by_proteins:
+            psms_for_accession = psms_by_proteins[accession]
+        # else:
+        #     print(
+        #         f"Info: No PSMs for accession {accession} found due to filter criteria!"
+        #     )
+        tmt_quants = {key: 0.0 for key in TMT.keys()}
+        for psm in psms_for_accession:
+            if has_resolution:
+                for c in TMT.keys():
+                    resgui_key = "RESGUI_" + c.split("-")[1] + " Resolution"
+                    if (
+                        pd.isna(float(psm[resgui_key]))
+                        or float(psm[resgui_key]) < min_reporter_res
+                    ):
+                        tmt_quants[c] += 0.0
+                    else:
+                        tmt_quants[c] += psm[f"Annotated {c}"]
+            else:
+                for c in TMT.keys():
+                    tmt_quants[c] += psm[f"Annotated {c}"]
+        for k, v in tmt_quants.items():
+            channels[k].append(v)
+    for key in channels.keys():
+        protein_table[f"Annotated protein-level {key}"] = channels[key]
+    return protein_table
+
+
+def __annotate_chimerys_protein_table(
+    protein_table: str,
+    psm_table: pd.DataFrame,
+    settings: Dict[str, Any],
+) -> pd.DataFrame:
+    protein_df = pd.read_csv(protein_table, sep="\t")
+    min_chimerys_coefficient = float(settings["min_chimerys_coefficient"])
+    min_avg_reporter_sn = float(settings["min_avg_reporter_sn"])
+    min_reporter_res = float(settings["min_reporter_res"])
+    min_purity = float(settings["min_purity"])
+    return __annotate_chimerys_protein_df(
+        protein_df,
+        psm_table,
+        min_chimerys_coefficient=min_chimerys_coefficient,
+        min_avg_reporter_sn=min_avg_reporter_sn,
+        min_reporter_res=min_reporter_res,
+        min_purity=min_purity,
+    )
+
+
 def __get_bool_from_value(value: Any) -> bool:
     if isinstance(value, bool):
         return value
@@ -181,6 +281,10 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "deisotope": parsed_toml["ISOTOPES"]["consider_precursor_isotopes"],
         "isotope_tolerance": parsed_toml["ISOTOPES"]["isotope_tolerance"],
         "max_charge": parsed_toml["ISOTOPES"]["max_charge"],
+        "min_chimerys_coefficient": parsed_toml["PROTEIN"]["min_chimerys_coefficient"],
+        "min_avg_reporter_sn": parsed_toml["PROTEIN"]["min_avg_reporter_sn"],
+        "min_reporter_res": parsed_toml["PROTEIN"]["min_reporter_res"],
+        "min_purity": parsed_toml["PROTEIN"]["min_purity"],
     }
 
 
@@ -311,11 +415,8 @@ def __get_resolution_gui_values(
     resolution_gui_map: Dict[str, Dict[int, pd.Series]],
     spectrum_filename: str,
 ) -> Dict[str, float]:
-    sf = (
-        spectrum_filename[:-5] + ".raw"
-        if spectrum_filename[-5:].lower() == ".mzml"
-        else spectrum_filename
-    )
+    _head, tail = os.path.split(spectrum_filename)
+    sf = tail[:-5] + ".raw" if tail[-5:].lower() == ".mzml" else tail
     sn = spectrum["scan_nr"]
     row = resolution_gui_map[sf][sn]
     data = dict()
@@ -755,7 +856,7 @@ def main(argv=None) -> pd.DataFrame:
         "--chimerys",
         dest="chimerys",
         required=True,
-        help="Path/name of the Chimerys result file in tab-separated .txt format.",
+        help="Path/name of the Chimerys PSM result file in tab-separated .txt format.",
         type=str,
     )
     parser.add_argument(
@@ -772,6 +873,15 @@ def main(argv=None) -> pd.DataFrame:
         dest="config",
         required=True,
         help="Path/name of the config file.",
+        type=str,
+    )
+    parser.add_argument(
+        "-p",
+        "--proteins",
+        dest="proteins",
+        required=False,
+        default=None,
+        help="Path/name of the Chimerys protein result file in tab-separated .txt format.",
         type=str,
     )
     parser.add_argument(
@@ -826,6 +936,13 @@ def main(argv=None) -> pd.DataFrame:
         sep="\t",
         index=False,
     )
+    if args.proteins is not None:
+        proteins_df = __annotate_chimerys_protein_table(args.proteins, df, settings)
+        proteins_df.to_csv(
+            args.proteins.split(".txt")[0] + "_purity_tmt_quant.txt",
+            sep="\t",
+            index=False,
+        )
     return df
 
 
