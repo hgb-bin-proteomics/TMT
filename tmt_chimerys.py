@@ -190,7 +190,13 @@ def __annotate_chimerys_protein_df(
                 f"Found more then one accession in column 'Accession' in protein table row {i}!"
             )
         accession = accession[0]
-        psms_for_accession = psms_by_proteins[accession]
+        psms_for_accession = list()
+        if accession in psms_by_proteins:
+            psms_for_accession = psms_by_proteins[accession]
+        # else:
+        #     print(
+        #         f"Info: No PSMs for accession {accession} found due to filter criteria!"
+        #     )
         tmt_quants = {key: 0.0 for key in TMT.keys()}
         for psm in psms_for_accession:
             if has_resolution:
