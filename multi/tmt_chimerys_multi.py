@@ -42,6 +42,8 @@ def main():
                 f"{f}.mzML",
                 "-c",
                 "config.toml",
+                "-p",
+                f"{f}_Proteins.txt",
                 "-r",
                 RESOLUTION_FILE,
                 "-w",
