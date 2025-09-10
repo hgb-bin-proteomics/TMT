@@ -409,11 +409,8 @@ def __get_resolution_gui_values(
     resolution_gui_map: Dict[str, Dict[int, pd.Series]],
     spectrum_filename: str,
 ) -> Dict[str, float]:
-    sf = (
-        spectrum_filename[:-5] + ".raw"
-        if spectrum_filename[-5:].lower() == ".mzml"
-        else spectrum_filename
-    )
+    _head, tail = os.path.split(spectrum_filename)
+    sf = tail[:-5] + ".raw" if tail[-5:].lower() == ".mzml" else tail
     sn = spectrum["scan_nr"]
     row = resolution_gui_map[sf][sn]
     data = dict()
