@@ -856,7 +856,8 @@ def main(argv=None) -> pd.DataFrame:
         description="Calculates co-isolation purity for Chimerys DIA TMT PSMs and optionally quantifies them.",
         epilog="(c) Research Institute of Molecular Pathology, 2025",
     )
-    parser.add_argument(
+    req = parser.add_argument_group("Required", "Required Arguments.")
+    req.add_argument(
         "-i",
         "--chimerys",
         dest="chimerys",
@@ -865,7 +866,7 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
         widget="FileChooser",
     )
-    parser.add_argument(
+    req.add_argument(
         "-s",
         "--spectra",
         dest="spectra",
@@ -874,7 +875,7 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
         widget="FileChooser",
     )
-    parser.add_argument(
+    req.add_argument(
         "-c",
         "--config",
         dest="config",
@@ -883,7 +884,8 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
         widget="FileChooser",
     )
-    parser.add_argument(
+    opt = parser.add_argument_group("Optional", "Optional Arguments.")
+    opt.add_argument(
         "-p",
         "--proteins",
         dest="proteins",
@@ -893,7 +895,7 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
         widget="FileChooser",
     )
-    parser.add_argument(
+    opt.add_argument(
         "-r",
         "--resolution",
         dest="resolution",
@@ -903,7 +905,7 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
         widget="FileChooser",
     )
-    parser.add_argument(
+    opt.add_argument(
         "-w",
         "--window",
         dest="window",
@@ -911,7 +913,7 @@ def main(argv=None) -> pd.DataFrame:
         help="Window size, overrides config file!",
         type=float,
     )
-    parser.add_argument(
+    opt.add_argument(
         "-n",
         "--native",
         dest="native",
