@@ -18,7 +18,6 @@
 
 import os
 import tomllib
-import argparse
 import warnings
 import subprocess
 import pandas as pd
