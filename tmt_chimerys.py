@@ -24,6 +24,8 @@ import pandas as pd
 from tqdm import tqdm
 from pyteomics import mzml
 import pyopenms as oms
+import urllib.request
+import zipfile
 
 from typing import Optional
 from typing import Dict
@@ -137,6 +139,35 @@ RESOLUTION_GUI_COLS = [
 PROTON = 1.007276466812
 ISOTOPE = 1.00335
 STRATEGY = 1
+
+
+def __convert(filename: str) -> str:
+    dl_url = "https://github.com/CompOmics/ThermoRawFileParser/releases/download/v1.4.5/ThermoRawFileParser1.4.5.zip"
+    if filename[-5:].lower() == ".mzml":
+        print(f"Found mzML file with name {filename}.")
+        print("Not converting file...")
+        return filename
+    print(f"Found RAW file with name {filename}.")
+    print("Converting using ThermoRawFileParser...")
+    if os.path.isdir("ThermoRawFileParser1.4.5") and os.path.exists(
+        os.path.join("ThermoRawFileParser1.4.5", "ThermoRawFileParser.exe")
+    ):
+        print("Found existing ThermoRawFileParser installation!")
+    else:
+        print("Downloading ThermoRawFileParser!")
+        urllib.request.urlretrieve(dl_url, "ThermoRawFileParser1.4.5.zip")
+        with zipfile.ZipFile("ThermoRawFileParser1.4.5.zip", "r") as f:
+            f.extractall("ThermoRawFileParser1.4.5")
+    subprocess.call(
+        [
+            "ThermoRawFileParser1.4.5/ThermoRawFileParser.exe",
+            "-i",
+            filename,
+        ]
+    )
+    new_filename = filename[:-3] + "mzML"
+    print(f"Successfully converted file to {new_filename}!")
+    return new_filename
 
 
 def __annotate_chimerys_protein_df(
