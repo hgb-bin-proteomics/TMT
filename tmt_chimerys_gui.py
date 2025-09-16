@@ -21,6 +21,7 @@ import pandas as pd
 from gooey import Gooey
 from gooey import GooeyParser
 
+from tmt_chimerys import __convert
 from tmt_chimerys import __read_settings
 from tmt_chimerys import __read_spectra_by_scannumber
 from tmt_chimerys import __get_consensusXML_df
@@ -30,8 +31,8 @@ from tmt_chimerys import __annotate_chimerys_result
 from tmt_chimerys import __annotate_chimerys_protein_table
 
 
-__version = "1.0.0"
-__date = "2025-09-08"
+__version = "1.0.1"
+__date = "2025-09-16"
 
 
 @Gooey(
@@ -127,17 +128,18 @@ def main(argv=None) -> pd.DataFrame:
         settings["window_size"] = float(args.window)
     print("Read settings:")
     print(settings)
-    spectra = __read_spectra_by_scannumber(args.spectra)
+    args_spectra = __convert(args.spectra)
+    spectra = __read_spectra_by_scannumber(args_spectra)
     consensusXML_map = None
     if not args.native:
-        consensusXML_df = __get_consensusXML_df(args.spectra)
+        consensusXML_df = __get_consensusXML_df(args_spectra)
         consensusXML_map = __get_consensusXML_map(consensusXML_df)
     resolution_gui_map = None
     if args.resolution is not None:
         resolution_gui_map = __get_resolution_gui_map(args.resolution)
     df = __annotate_chimerys_result(
         filename=args.chimerys,
-        spectrum_filename=args.spectra,
+        spectrum_filename=args_spectra,
         spectra=spectra,
         settings=settings,
         consensusXML_map=consensusXML_map,
