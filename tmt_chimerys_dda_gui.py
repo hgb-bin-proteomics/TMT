@@ -36,7 +36,7 @@ __date = "2025-09-17"
 
 @Gooey(
     encoding="utf-8",
-    program_name="TMT Chimerys",
+    program_name="TMT Chimerys DDA",
     menu=[
         {
             "name": "Help",
