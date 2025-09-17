@@ -39,9 +39,10 @@ from tmt_chimerys import __get_key
 from tmt_chimerys import __within_tolerance
 from tmt_chimerys import __check_mz_in_ms1
 from tmt_chimerys import __annotate_chimerys_protein_table
+from tmt_chimerys import __convert
 
-__version = "1.0.2"
-__date = "2025-09-08"
+__version = "1.0.3"
+__date = "2025-09-17"
 
 ISOTOPE = 1.00335
 STRATEGY = 1
@@ -390,20 +391,21 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
+    args_spectra = __convert(args.spectra)
     if args.window is not None:
         settings["window_size"] = float(args.window)
     print(settings)
-    spectra = __read_spectra_by_scannumber(args.spectra)
+    spectra = __read_spectra_by_scannumber(args_spectra)
     consensusXML_map = None
     if not args.native:
-        consensusXML_df = __get_consensusXML_df(args.spectra)
+        consensusXML_df = __get_consensusXML_df(args_spectra)
         consensusXML_map = __get_consensusXML_map(consensusXML_df)
     resolution_gui_map = None
     if args.resolution is not None:
         resolution_gui_map = __get_resolution_gui_map(args.resolution)
     df = __annotate_chimerys_result(
         filename=args.chimerys,
-        spectrum_filename=args.spectra,
+        spectrum_filename=args_spectra,
         spectra=spectra,
         settings=settings,
         consensusXML_map=consensusXML_map,
