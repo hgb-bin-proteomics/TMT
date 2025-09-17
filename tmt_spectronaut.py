@@ -42,9 +42,10 @@ from tmt_chimerys import __parse_scan_nr_from_id
 from tmt_chimerys import __check_mz_in_ms1
 from tmt_chimerys import __calculate_precursor_intensity_ms1
 from tmt_chimerys import __get_windows
+from tmt_chimerys import __convert
 
-__version = "1.0.0"
-__date = "2025-08-22"
+__version = "1.0.1"
+__date = "2025-09-17"
 
 
 # read mass spectra from an mzML file
@@ -459,26 +460,27 @@ def main(argv=None) -> pd.DataFrame:
         "--verbose",
         dest="verbose",
         default=2,
-        help="Verbose level.",
+        help="Verbose level where 0: ignore all, 1: raise warnings, and >= 2: raise errors!",
         type=int,
     )
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
+    args_spectra = __convert(args.spectra)
     if args.window is not None:
         settings["window_size"] = float(args.window)
     print(settings)
-    spectra = __read_spectra(args.spectra)
+    spectra = __read_spectra(args_spectra)
     consensusXML_map = None
     if not args.native:
-        consensusXML_df = __get_consensusXML_df(args.spectra)
+        consensusXML_df = __get_consensusXML_df(args_spectra)
         consensusXML_map = __get_consensusXML_map(consensusXML_df)
     resolution_gui_map = None
     if args.resolution is not None:
         resolution_gui_map = __get_resolution_gui_map(args.resolution)
     df = __annotate_spectronaut_result(
         spectronaut_filename=args.spectronaut,
-        spectrum_filename=args.spectra,
+        spectrum_filename=args_spectra,
         spectra=spectra,
         settings=settings,
         consensusXML_map=consensusXML_map,
