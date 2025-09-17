@@ -16,10 +16,14 @@
 - Option A (recommended): Run via [uv](https://docs.astral.sh/uv/)
   - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.: `pip install uv`
   - Run the script with `uv run tmt_chimerys.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMS.txt -c config.toml`
+  - To display all possible parameters run `uv run tmt_chimerys.py --help`
+  - Alternatively you can also run the script with a graphical user interface using `uv run tmt_chimerys_gui.py`
 - Option B: Run via native python
   - Install python 3.12 or greater from https://www.python.org/downloads/
   - Install requirements with `pip install -r requirements.txt`
   - Run the script with `python tmt_chimerys.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMS.txt -c config.toml`
+  - To display all possible parameters run `python tmt_chimerys.py --help`
+  - Alternatively you can also run the script with a graphical user interface using `python tmt_chimerys_gui.py`
 
 ### Chimerys DDA
 
@@ -31,7 +35,11 @@
 - Option A (recommended): Run via [uv](https://docs.astral.sh/uv/)
   - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.: `pip install uv`
   - Run the script with `uv run tmt_chimerys_dda.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMS.txt -c config.toml`
+  - To display all possible parameters run `uv run tmt_chimerys_dda.py --help`
+  - Alternatively you can also run the script with a graphical user interface using `uv run tmt_chimerys_dda_gui.py`
 - Option B: Run via native python
   - Install python 3.12 or greater from https://www.python.org/downloads/
   - Install requirements with `pip install -r requirements.txt`
   - Run the script with `python tmt_chimerys_dda.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMS.txt -c config.toml`
+  - To display all possible parameters run `python tmt_chimerys_dda.py --help`
+  - Alternatively you can also run the script with a graphical user interface using `python tmt_chimerys_dda_gui.py`
