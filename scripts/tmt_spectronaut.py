@@ -460,7 +460,7 @@ def main(argv=None) -> pd.DataFrame:
         "--verbose",
         dest="verbose",
         default=2,
-        help="Verbose level where 0: ignore all, 1: raise warnings, and >= 2: raise errors!",
+        help="Verbose level where 0: ignore all warnings and errors, 1: raise warnings, and >= 2: raise errors!",
         type=int,
     )
     parser.add_argument("--version", action="version", version=__version)
