@@ -5,7 +5,8 @@
 
   "exclude": [
     "**/__pycache__",
-    "**/multi"
+    "**/multi",
+    "**/tests"
   ],
 
   "pythonVersion": "3.11",
