@@ -64,6 +64,7 @@ def main(argv=None) -> pd.DataFrame:
         required=True,
         help="Path/name of the Chimerys result file in tab-separated .txt format.",
         type=str,
+        widget="FileChooser",
     )
     req.add_argument(
         "-s",
@@ -72,6 +73,7 @@ def main(argv=None) -> pd.DataFrame:
         required=True,
         help="Path/name of the mass spectra file in mzML format.",
         type=str,
+        widget="FileChooser",
     )
     req.add_argument(
         "-c",
@@ -80,6 +82,7 @@ def main(argv=None) -> pd.DataFrame:
         required=True,
         help="Path/name of the config file.",
         type=str,
+        widget="FileChooser",
     )
     opt = parser.add_argument_group("Optional", "Optional Arguments.")
     opt.add_argument(
@@ -90,6 +93,7 @@ def main(argv=None) -> pd.DataFrame:
         default=None,
         help="Path/name of the Chimerys protein result file in tab-separated .txt format.",
         type=str,
+        widget="FileChooser",
     )
     opt.add_argument(
         "-r",
@@ -99,6 +103,7 @@ def main(argv=None) -> pd.DataFrame:
         default=None,
         help="Path/name of the resolution.csv file from the Resolution GUI file.",
         type=str,
+        widget="FileChooser",
     )
     opt.add_argument(
         "-w",
