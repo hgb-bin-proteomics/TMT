@@ -37,7 +37,7 @@ from tmt_chimerys import __convert
 from tmt_spectronaut import __read_spectra
 from tmt_spectronaut import __get_ms2_spectrum
 
-__version = "1.0.1"
+__version = "1.0.2"
 __date = "2025-09-18"
 
 
@@ -221,10 +221,10 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
-    args_spectra = __convert(args.spectra)
     if args.window is not None:
         settings["window_size"] = float(args.window)
     print(settings)
+    args_spectra = __convert(args.spectra)
     spectra = __read_spectra(args_spectra)
     consensusXML_map = None
     if not args.native:
