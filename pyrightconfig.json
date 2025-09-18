@@ -4,9 +4,11 @@
   ],
 
   "exclude": [
-    "**/__pycache__"
+    "**/__pycache__",
+    "**/multi",
+    "**/tests"
   ],
 
-  "pythonVersion": "3.11",
+  "pythonVersion": "3.12",
   "pythonPlatform": "Linux"
 }

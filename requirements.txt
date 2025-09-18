@@ -1,3 +1,6 @@
 pandas
+pyarrow
 tqdm
 pyteomics[XML]
+pyopenms
+gooey
