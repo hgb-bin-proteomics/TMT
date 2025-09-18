@@ -7,6 +7,7 @@
 #   "pyarrow",
 #   "tqdm",
 #   "pyteomics[XML]",
+#   "pyopenms",
 # ]
 # ///
 
