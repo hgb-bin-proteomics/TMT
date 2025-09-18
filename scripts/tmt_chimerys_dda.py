@@ -41,8 +41,8 @@ from tmt_chimerys import __check_mz_in_ms1
 from tmt_chimerys import __annotate_chimerys_protein_table
 from tmt_chimerys import __convert
 
-__version = "1.0.3"
-__date = "2025-09-17"
+__version = "1.0.4"
+__date = "2025-09-18"
 
 ISOTOPE = 1.00335
 STRATEGY = 1
@@ -391,10 +391,10 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
-    args_spectra = __convert(args.spectra)
     if args.window is not None:
         settings["window_size"] = float(args.window)
     print(settings)
+    args_spectra = __convert(args.spectra)
     spectra = __read_spectra_by_scannumber(args_spectra)
     consensusXML_map = None
     if not args.native:

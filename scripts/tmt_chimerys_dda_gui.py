@@ -30,13 +30,13 @@ from tmt_chimerys import __annotate_chimerys_protein_table
 from tmt_chimerys import __convert
 from tmt_chimerys_dda import __annotate_chimerys_result
 
-__version = "1.0.0"
-__date = "2025-09-17"
+__version = "1.0.4"
+__date = "2025-09-18"
 
 
 @Gooey(
     encoding="utf-8",
-    program_name="TMT Chimerys DDA",
+    program_name=f"TMT Chimerys DDA {__version}",
     menu=[
         {
             "name": "Help",
