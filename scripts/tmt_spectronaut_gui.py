@@ -35,7 +35,7 @@ __date = "2025-09-18"
 
 @Gooey(
     encoding="utf-8",
-    program_name="TMT Spectronaut",
+    program_name=f"TMT Spectronaut {__version}",
     menu=[
         {
             "name": "Help",

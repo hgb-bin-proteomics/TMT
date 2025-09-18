@@ -44,8 +44,8 @@ from tmt_chimerys import __calculate_precursor_intensity_ms1
 from tmt_chimerys import __get_windows
 from tmt_chimerys import __convert
 
-__version = "1.0.1"
-__date = "2025-09-17"
+__version = "1.0.2"
+__date = "2025-09-18"
 
 
 # read mass spectra from an mzML file
@@ -466,10 +466,10 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
-    args_spectra = __convert(args.spectra)
     if args.window is not None:
         settings["window_size"] = float(args.window)
     print(settings)
+    args_spectra = __convert(args.spectra)
     spectra = __read_spectra(args_spectra)
     consensusXML_map = None
     if not args.native:
