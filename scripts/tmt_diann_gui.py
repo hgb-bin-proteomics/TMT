@@ -7,6 +7,7 @@
 #   "pyarrow",
 #   "tqdm",
 #   "pyteomics[XML]",
+#   "pyopenms",
 #   "gooey",
 # ]
 # ///
@@ -63,6 +64,7 @@ def main(argv=None) -> pd.DataFrame:
         required=True,
         help="Path/name of the DIA-NN result file.",
         type=str,
+        widget="FileChooser",
     )
     req.add_argument(
         "-s",
@@ -71,6 +73,7 @@ def main(argv=None) -> pd.DataFrame:
         required=True,
         help="Path/name of the mass spectra file in mzML format.",
         type=str,
+        widget="FileChooser",
     )
     req.add_argument(
         "-c",
@@ -79,6 +82,7 @@ def main(argv=None) -> pd.DataFrame:
         default=None,
         help="Path/name of the config file.",
         type=str,
+        widget="FileChooser",
     )
     opt = parser.add_argument_group("Optional", "Optional Arguments.")
     opt.add_argument(
@@ -89,6 +93,7 @@ def main(argv=None) -> pd.DataFrame:
         default=None,
         help="Path/name of the resolution.csv file from the Resolution GUI file.",
         type=str,
+        widget="FileChooser",
     )
     opt.add_argument(
         "-w",
@@ -113,6 +118,8 @@ def main(argv=None) -> pd.DataFrame:
         default=2,
         help="Verbose level.",
         type=int,
+        widget="IntegerField",
+        gooey_options={"initial_value": 1, "min": 0, "max": 2, "increment": 1},
     )
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
