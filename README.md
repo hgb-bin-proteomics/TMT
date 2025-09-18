@@ -79,6 +79,8 @@ or [uv](https://docs.astral.sh/uv/).
     ```bash
     python tmt_chimerys_gui.py
     ```
+- The result will be new files with name extension `_purity_tmt_quant` that are written out,
+  containing purity and quantification values.
 
 #### Chimerys DDA
 
@@ -137,3 +139,107 @@ or [uv](https://docs.astral.sh/uv/).
     ```bash
     python tmt_chimerys_dda_gui.py
     ```
+- The result will be new files with name extension `_purity_tmt_quant` that are written out,
+  containing purity and quantification values.
+
+#### Spectronaut
+
+- Export matched precursors from Spectronaut in comma-separated `.csv` format.
+- Set you desired parameters in `config.toml`.
+- The scripts support both `.raw` files and `.mzML` files as input, `.raw` files will be automatically
+  converted to `.mzML` when the scripts are run.
+- The following steps are optional if you want to convert your `.raw` files manually:
+  - Download ThermoRawFileParser from [here](https://github.com/CompOmics/ThermoRawFileParser/releases/tag/v1.4.5)
+  - Convert your RAW file with:
+    ```bash
+    ThermoRawFileParser.exe -i RAW_FILE_NAME.raw
+    ```
+- Install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
+- **Option A (recommended): Running via [uv](https://docs.astral.sh/uv/).**
+  - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.:
+    ```bash
+    pip install uv
+    ```
+  - Run the script with:
+    ```bash
+    uv run tmt_spectronaut.py -s SPECTRA.mzML -i precursors.csv -c config.toml
+    ```
+  - To display all possible parameters run:
+    ```bash
+    uv run tmt_spectronaut.py --help
+    ```
+  - Alternatively you can also run the script with a graphical user interface using:
+    ```bash
+    uv run tmt_spectronaut_gui.py
+    ```
+- **Option B: Running via native python.**
+  - Install python 3.12 or greater from [here](https://www.python.org/downloads/).
+  - Install requirements with:
+    ```bash
+    pip install -r requirements.txt
+    ```
+  - Run the script with:
+    ```bash
+    python tmt_spectronaut.py -s SPECTRA.mzML -i precursors.csv -c config.toml
+    ```
+  - To display all possible parameters run:
+    ```bash
+    python tmt_spectronaut.py --help
+    ```
+  - Alternatively you can also run the script with a graphical user interface using:
+    ```bash
+    python tmt_spectronaut_gui.py
+    ```
+- The result will be new files with name extension `_purity_tmt_quant` that are written out,
+  containing purity and quantification values.
+
+#### DIA-NN
+
+- Use the `report.parquet` that you get from DIA-NN.
+- Set you desired parameters in `config.toml`.
+- The scripts support both `.raw` files and `.mzML` files as input, `.raw` files will be automatically
+  converted to `.mzML` when the scripts are run.
+- The following steps are optional if you want to convert your `.raw` files manually:
+  - Download ThermoRawFileParser from [here](https://github.com/CompOmics/ThermoRawFileParser/releases/tag/v1.4.5)
+  - Convert your RAW file with:
+    ```bash
+    ThermoRawFileParser.exe -i RAW_FILE_NAME.raw
+    ```
+- Install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
+- **Option A (recommended): Running via [uv](https://docs.astral.sh/uv/).**
+  - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.:
+    ```bash
+    pip install uv
+    ```
+  - Run the script with:
+    ```bash
+    uv run tmt_diann.py -s SPECTRA.mzML -i report.parquet -c config.toml
+    ```
+  - To display all possible parameters run:
+    ```bash
+    uv run tmt_diann.py --help
+    ```
+  - Alternatively you can also run the script with a graphical user interface using:
+    ```bash
+    uv run tmt_diann_gui.py
+    ```
+- **Option B: Running via native python.**
+  - Install python 3.12 or greater from [here](https://www.python.org/downloads/).
+  - Install requirements with:
+    ```bash
+    pip install -r requirements.txt
+    ```
+  - Run the script with:
+    ```bash
+    python tmt_diann.py -s SPECTRA.mzML -i report.parquet -c config.toml
+    ```
+  - To display all possible parameters run:
+    ```bash
+    python tmt_diann.py --help
+    ```
+  - Alternatively you can also run the script with a graphical user interface using:
+    ```bash
+    python tmt_diann_gui.py
+    ```
+- The result will be new files with name extension `_purity_tmt_quant` that are written out,
+  containing purity and quantification values.
