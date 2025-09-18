@@ -12,6 +12,8 @@ are limited to the python scripts.
 
 ### Graphical User Interface
 
+![GUI screenshot](docs/gui.png)
+
 ### Commandline Interface
 
 Please refer to [CLI.md](CLI.md).
