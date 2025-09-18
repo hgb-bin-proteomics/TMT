@@ -5,6 +5,12 @@ TMTpro-18plex quantification for \[single cell\] DIA and DDA searches with
 [Spectronaut](https://biognosys.com/software/spectronaut/), and
 [DIA-NN](https://github.com/vdemichev/DiaNN).
 
+## Requirements
+
+- Please install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
+- If you want to run the python scripts, you need to install [python 3.12](https://www.python.org/downloads/)
+  or [uv](https://docs.astral.sh/uv/).
+
 ## Usage
 
 - On Microsoft Windows the applications can be run as standalone executables or as python scripts.
