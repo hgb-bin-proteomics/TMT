@@ -33,11 +33,12 @@ from tmt_chimerys import __get_consensusXML_map
 from tmt_chimerys import __get_resolution_gui_map
 from tmt_chimerys import __get_resolution_gui_values
 from tmt_chimerys import __get_windows
+from tmt_chimerys import __convert
 from tmt_spectronaut import __read_spectra
 from tmt_spectronaut import __get_ms2_spectrum
 
-__version = "1.0.0"
-__date = "2025-07-22"
+__version = "1.0.1"
+__date = "2025-09-18"
 
 
 # annotates the DIA-NN result with TMT quantities
@@ -220,20 +221,21 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
+    args_spectra = __convert(args.spectra)
     if args.window is not None:
         settings["window_size"] = float(args.window)
     print(settings)
-    spectra = __read_spectra(args.spectra)
+    spectra = __read_spectra(args_spectra)
     consensusXML_map = None
     if not args.native:
-        consensusXML_df = __get_consensusXML_df(args.spectra)
+        consensusXML_df = __get_consensusXML_df(args_spectra)
         consensusXML_map = __get_consensusXML_map(consensusXML_df)
     resolution_gui_map = None
     if args.resolution is not None:
         resolution_gui_map = __get_resolution_gui_map(args.resolution)
     df = __annotate_diann_result(
         diann_filename=args.diann,
-        spectrum_filename=args.spectra,
+        spectrum_filename=args_spectra,
         spectra=spectra,
         settings=settings,
         consensusXML_map=consensusXML_map,
