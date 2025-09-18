@@ -28,7 +28,7 @@ Please refer to [CLI.md](CLI.md).
 
 ### Configuration
 
-Please set the following parameters according to your needs in the `config.toml` file.
+Please set the following parameters according to your needs in the `config.toml` file:
 
 ```toml
 [METHOD]
