@@ -1,45 +1,139 @@
 # TMT
 
+TMTpro-18plex quantification for \[single cell\] DIA and DDA searches with
+[Chimerys](https://www.msaid.de/chimerys),
+[Spectronaut](https://biognosys.com/software/spectronaut/), and
+[DIA-NN](https://github.com/vdemichev/DiaNN).
+
 ## Usage
 
+On Microsoft Windows the applications can be run as standalone executables or as python scripts. Other operating systems
+are limited to the python scripts.
+
+### Graphical User Interface
+
+### Commandline Interface
+
+You can run the following scripts from the commandline using [python](https://www.python.org/downloads/)
+or [uv](https://docs.astral.sh/uv/).
+
 > [!IMPORTANT]
+>
 > Please make sure that `tmt_chimerys.py`, `tmt_chimerys_dda.py`, `tmt_diann.py`, `tmt_spectronaut.py`,
-> and `tmt18plex_default.ini` are in the same directory when executing!
+> and `tmt18plex_default.ini` are in the same directory when running them as python scripts!
 
-### Chimerys DIA
+#### Chimerys DIA
 
-- Export Chimerys PSMs from Proteome Discoverer in tab-separated .txt format.
+- Export Chimerys PSMs from Proteome Discoverer in tab-separated `.txt` format.
+- \[Optionally\] Export Chimerys Proteins from Proteome Discoverer in tab-seperated `.txt` format.
 - Set you desired parameters in `config.toml`
-- Download ThermoRawFileParser from https://github.com/CompOmics/ThermoRawFileParser/releases/tag/v1.4.5
-- Convert your RAW file with `ThermoRawFileParser.exe -i RAW_FILE_NAME`
+- The scripts support both `.raw` files and `.mzML` files as input, `.raw` files will be automatically
+  converted to `.mzML` when the scripts are run.
+- The following steps are optional if you want to convert your `.raw` files manually:
+  - Download ThermoRawFileParser from [here](https://github.com/CompOmics/ThermoRawFileParser/releases/tag/v1.4.5)
+  - Convert your RAW file with
+    ```bash
+    ThermoRawFileParser.exe -i RAW_FILE_NAME.raw
+    ```
 - Install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
 - Option A (recommended): Run via [uv](https://docs.astral.sh/uv/)
-  - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.: `pip install uv`
-  - Run the script with `uv run tmt_chimerys.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMS.txt -c config.toml`
-  - To display all possible parameters run `uv run tmt_chimerys.py --help`
-  - Alternatively you can also run the script with a graphical user interface using `uv run tmt_chimerys_gui.py`
+  - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.:
+    ```bash
+    pip install uv
+    ```
+  - Run the script with
+    ```bash
+    uv run tmt_chimerys.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMs.txt -c config.toml
+    ```
+  - _or_ if you also have proteins with
+    ```bash
+    uv run tmt_chimerys.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMs.txt -c config.toml -p PROTEOME_DISCOVERER_Proteins.txt
+    ```
+  - To display all possible parameters run
+    ```bash
+    uv run tmt_chimerys.py --help
+    ```
+  - Alternatively you can also run the script with a graphical user interface using
+    ```bash
+    uv run tmt_chimerys_gui.py
+    ```
 - Option B: Run via native python
-  - Install python 3.12 or greater from https://www.python.org/downloads/
-  - Install requirements with `pip install -r requirements.txt`
-  - Run the script with `python tmt_chimerys.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMS.txt -c config.toml`
-  - To display all possible parameters run `python tmt_chimerys.py --help`
-  - Alternatively you can also run the script with a graphical user interface using `python tmt_chimerys_gui.py`
+  - Install python 3.12 or greater from [here](https://www.python.org/downloads/)
+  - Install requirements with
+    ```bash
+    pip install -r requirements.txt
+    ```
+  - Run the script with
+    ```bash
+    python tmt_chimerys.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMs.txt -c config.toml
+    ```
+  - _or_ if you also have proteins with
+    ```bash
+    python tmt_chimerys.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMs.txt -c config.toml -p PROTEOME_DISCOVERER_Proteins.txt
+    ```
+  - To display all possible parameters run
+    ```bash
+    python tmt_chimerys.py --help
+    ```
+  - Alternatively you can also run the script with a graphical user interface using
+    ```bash
+    python tmt_chimerys_gui.py
+    ```
 
-### Chimerys DDA
+#### Chimerys DDA
 
-- Export Chimerys PSMs from Proteome Discoverer in tab-separated .txt format.
+- Export Chimerys PSMs from Proteome Discoverer in tab-separated `.txt` format.
+- \[Optionally\] Export Chimerys Proteins from Proteome Discoverer in tab-seperated `.txt` format.
 - Set you desired parameters in `config.toml`
-- Download ThermoRawFileParser from https://github.com/CompOmics/ThermoRawFileParser/releases/tag/v1.4.5
-- Convert your RAW file with `ThermoRawFileParser.exe -i RAW_FILE_NAME`
+- The scripts support both `.raw` files and `.mzML` files as input, `.raw` files will be automatically
+  converted to `.mzML` when the scripts are run.
+- The following steps are optional if you want to convert your `.raw` files manually:
+  - Download ThermoRawFileParser from [here](https://github.com/CompOmics/ThermoRawFileParser/releases/tag/v1.4.5)
+  - Convert your RAW file with
+    ```bash
+    ThermoRawFileParser.exe -i RAW_FILE_NAME.raw
+    ```
 - Install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
 - Option A (recommended): Run via [uv](https://docs.astral.sh/uv/)
-  - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.: `pip install uv`
-  - Run the script with `uv run tmt_chimerys_dda.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMS.txt -c config.toml`
-  - To display all possible parameters run `uv run tmt_chimerys_dda.py --help`
-  - Alternatively you can also run the script with a graphical user interface using `uv run tmt_chimerys_dda_gui.py`
+  - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.:
+    ```bash
+    pip install uv
+    ```
+  - Run the script with
+    ```bash
+    uv run tmt_chimerys_dda.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMs.txt -c config.toml
+    ```
+  - _or_ if you also have proteins with
+    ```bash
+    uv run tmt_chimerys_dda.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMs.txt -c config.toml -p PROTEOME_DISCOVERER_Proteins.txt
+    ```
+  - To display all possible parameters run
+    ```bash
+    uv run tmt_chimerys_dda.py --help
+    ```
+  - Alternatively you can also run the script with a graphical user interface using
+    ```bash
+    uv run tmt_chimerys_dda_gui.py
+    ```
 - Option B: Run via native python
-  - Install python 3.12 or greater from https://www.python.org/downloads/
-  - Install requirements with `pip install -r requirements.txt`
-  - Run the script with `python tmt_chimerys_dda.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMS.txt -c config.toml`
-  - To display all possible parameters run `python tmt_chimerys_dda.py --help`
-  - Alternatively you can also run the script with a graphical user interface using `python tmt_chimerys_dda_gui.py`
+  - Install python 3.12 or greater from [here](https://www.python.org/downloads/)
+  - Install requirements with
+    ```bash
+    pip install -r requirements.txt
+    ```
+  - Run the script with
+    ```bash
+    python tmt_chimerys_dda.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMs.txt -c config.toml
+    ```
+  - _or_ if you also have proteins with
+    ```bash
+    python tmt_chimerys_dda.py -s SPECTRA.mzML -i PROTEOME_DISCOVERER_PSMs.txt -c config.toml -p PROTEOME_DISCOVERER_Proteins.txt
+    ```
+  - To display all possible parameters run
+    ```bash
+    python tmt_chimerys_dda.py --help
+    ```
+  - Alternatively you can also run the script with a graphical user interface using
+    ```bash
+    python tmt_chimerys_dda_gui.py
+    ```
