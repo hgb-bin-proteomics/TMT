@@ -8,7 +8,7 @@ TMTpro-18plex quantification for \[single cell\] DIA and DDA searches with
 ## Requirements
 
 - Please install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
-- If you want to run the python scripts, you need to install [python 3.12](https://www.python.org/downloads/)
+- If you want to run the python scripts, you need to install [python 3.12 or higher](https://www.python.org/downloads/)
   or [uv](https://docs.astral.sh/uv/).
 
 ## Usage
