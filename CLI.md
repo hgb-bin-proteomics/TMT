@@ -3,6 +3,8 @@
 You can run the following scripts from the commandline using [python](https://www.python.org/downloads/)
 or [uv](https://docs.astral.sh/uv/).
 
+You can find all scripts in the `/scripts` folder.
+
 > [!IMPORTANT]
 >
 > Please make sure that `tmt_chimerys.py`, `tmt_chimerys_dda.py`, `tmt_diann.py`, `tmt_spectronaut.py`,
