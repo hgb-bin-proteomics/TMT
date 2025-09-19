@@ -27,7 +27,7 @@ either [releases](https://github.com/hgb-bin-proteomics/TMT/releases) or in zipp
 > [!IMPORTANT]
 >
 > Please make sure that the executable and the `tmt18plex_default.ini` file are in the same directory!
-> You might also have to unblock the `tmt18plex_default.ini` file either via its Properties (right-click) or
+> You might also have to unblock the `tmt18plex_default.ini` file either via its _Properties_ (right-click) or
 > using [PowerShell](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/unblock-file).
 
 ### Commandline Interface
