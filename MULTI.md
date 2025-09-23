@@ -33,7 +33,7 @@ install the requirements and follow the steps below.
   (see [here](https://openms.de/documentation/html/TOPP_IsobaricAnalyzer.html)).
 - Lastly, please put the following scripts into the folder:
   `tmt_chimerys.py`, `tmt_chimerys_dda.py`, `tmt_chimerys_multi.py`, and `tmt_chimerys_dda_multi.py`
-- You folder structure should now be something like this:
+- Your `tmt_files` folder structure should now be something like this:
   - `20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz0c5_3ng_1.raw`
   - `20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz0c5_3ng_1_PSMs.txt`
   - `20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz0c5_3ng_1_Proteins.txt`
