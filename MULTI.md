@@ -27,7 +27,8 @@ install the requirements and follow the steps below.
     ```bash
     ThermoRawFileParser.exe -d path/to/tmt_files
     ```
-- Running the multi-file scripts also requires that the `resolution.csv` from the Resolution GUI tool is in the same folder.
+- Running the multi-file scripts also requires that the `resolution.csv` from the
+  [Resolution GUI tool](https://doi.org/10.1038/s41467-025-60022-x) is in the same folder.
 - Additionally, your `config.toml` should also be in the same folder. Adapt the configuration to your needs.
 - Moreover, please put the `tmt18plex_default.ini` also in that folder and adapt if needed
   (see [here](https://openms.de/documentation/html/TOPP_IsobaricAnalyzer.html)).
