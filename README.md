@@ -5,6 +5,12 @@ TMTpro-18plex quantification for \[single cell\] DIA and DDA searches with
 [Spectronaut](https://biognosys.com/software/spectronaut/), and
 [DIA-NN](https://github.com/vdemichev/DiaNN).
 
+## Requirements
+
+- Please install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
+- If you want to run the python scripts, you need to install [python 3.12 or higher](https://www.python.org/downloads/)
+  or [uv](https://docs.astral.sh/uv/).
+
 ## Usage
 
 - On Microsoft Windows the applications can be run as standalone executables or as python scripts.
@@ -20,11 +26,18 @@ either [releases](https://github.com/hgb-bin-proteomics/TMT/releases) or in zipp
 
 > [!IMPORTANT]
 >
-> Please make sure that the executable and the `tmt18plex_default.ini` file are in the same directory.
+> Please make sure that the executable and the `tmt18plex_default.ini` file are in the same directory!
+> You might also have to unblock the `tmt18plex_default.ini` file either via its _Properties_ (right-click) or
+> using [PowerShell](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/unblock-file).
 
 ### Commandline Interface
 
 Please refer to [CLI.md](CLI.md).
+
+### Running the Scripts for Multiple Files
+
+If you want to run the `tmt_chimerys.py` or `tmt_chimerys_dda.py` script for multiple inputs, please
+refer to [MULTI.md](MULTI.md).
 
 ### Configuration
 
@@ -71,6 +84,11 @@ min_reporter_res = 45000.0
 # minimum purity for a PSM to be considered for aggregation
 min_purity = 0.7
 ```
+
+> [!IMPORTANT]
+>
+> You might also want to adapt the isotope correction factors for your TMT lot, you can do that in the `tmt18plex_default.ini` file.
+> Please refer to the documentation site of OpenMS [here](https://openms.de/documentation/html/TOPP_IsobaricAnalyzer.html).
 
 ## Contact
 

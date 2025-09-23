@@ -27,6 +27,7 @@ def main():
     file_prefixes = [os.path.splitext(f)[0] for f in mzml_files]
     for nr, f in enumerate(file_prefixes):
         # try parsing window size just to check that it's correctly parsed
+        # adjust if needed
         _ = float(f.split("pool_DIA_mz")[1].split("_")[0].replace("c", "."))
         w = f.split("pool_DIA_mz")[1].split("_")[0].replace("c", ".")
         # console log
