@@ -38,6 +38,7 @@ install the requirements and follow the steps below.
   - `multi/tmt_chimerys_dda_multi.py`
 - Your `tmt_files` folder structure should now be something like this:
   - `20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz0c5_3ng_1.raw`
+  - `20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz0c5_3ng_1.mzML`
   - `20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz0c5_3ng_1_PSMs.txt`
   - `20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz0c5_3ng_1_Proteins.txt`
   - `...`
