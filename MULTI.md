@@ -20,8 +20,7 @@ install the requirements and follow the steps below.
   - `20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz0c5_3ng_1_PSMs.txt`
   - `20250519_Astral1_Evo_TH070_TT_THIDmulti003_pool_DIA_mz0c5_3ng_1_Proteins.txt`
 - It's important that files that belong together are named like this schema.
-- It's not required to convert `.raw` files to `.mzML` format but it substantially speeds up the process.
-  Here's how to do it:
+- You will need to convert your `.raw` files to `.mzML` format, here's how to do it:
   - Download ThermoRawFileParser from [here](https://github.com/CompOmics/ThermoRawFileParser/releases/tag/v1.4.5).
   - Convert your RAW files with:
     ```bash
