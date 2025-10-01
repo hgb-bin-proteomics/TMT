@@ -28,8 +28,8 @@ def main():
     for nr, f in enumerate(file_prefixes):
         # try parsing window size just to check that it's correctly parsed
         # adjust if needed
-        _ = float(f.split("pool_DIA_mz")[1].split("_")[0].replace("c", "."))
-        w = f.split("pool_DIA_mz")[1].split("_")[0].replace("c", ".")
+        _ = float(f.split("DIA_mz")[1].split("_")[0].replace("c", "."))
+        w = f.split("DIA_mz")[1].split("_")[0].replace("c", ".")
         # console log
         print("---------- STARTING ANALYSIS FOR ONE FILE ----------")
         print(f"file: {f}")
