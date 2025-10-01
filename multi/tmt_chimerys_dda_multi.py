@@ -26,9 +26,14 @@ def main():
     mzml_files = [f for f in glob.glob("*.mzML")]
     file_prefixes = [os.path.splitext(f)[0] for f in mzml_files]
     for nr, f in enumerate(file_prefixes):
+        # try parsing window size just to check that it's correctly parsed
+        # adjust if needed
+        _ = float(f.split("DDA_mz")[1].split("_")[0].replace("c", "."))
+        w = f.split("DDA_mz")[1].split("_")[0].replace("c", ".")
         # console log
         print("---------- STARTING ANALYSIS FOR ONE FILE ----------")
         print(f"file: {f}")
+        print(f"window: {w}")
         # call tmt chimerys script
         _ = tmt_chimerys_dda(
             [
@@ -42,6 +47,8 @@ def main():
                 f"{f}_Proteins.txt",
                 "-r",
                 RESOLUTION_FILE,
+                "-w",
+                w,
             ]
         )
         # console log
