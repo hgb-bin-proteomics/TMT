@@ -61,7 +61,7 @@ install the requirements and follow the steps below.
     ```
   - _or_ run the DDA script with:
     ```bash
-    uv run tmt_chimerys_multi.py
+    uv run tmt_chimerys_dda_multi.py
     ```
 - **Option B: Running via native python.**
   - Install python 3.12 or greater from [here](https://www.python.org/downloads/).
