@@ -17,14 +17,26 @@
 
 import os
 import glob
-from tmt_chimerys_dda import main as tmt_chimerys_dda
+from tmt_chimerys import __get_resolution_gui_map
+from tmt_chimerys import __read_settings
+from tmt_chimerys import __convert
+from tmt_chimerys import __read_spectra_by_scannumber
+from tmt_chimerys import __get_consensusXML_df
+from tmt_chimerys import __get_consensusXML_map
+from tmt_chimerys_dda import __annotate_chimerys_result
+from tmt_chimerys import __annotate_chimerys_protein_table
 
+CONFIG_FILE = "config.toml"
 RESOLUTION_FILE = "resolution.csv"
+USE_OPENMS = True
 
 
 def main():
     mzml_files = [f for f in glob.glob("*.mzML")]
     file_prefixes = [os.path.splitext(f)[0] for f in mzml_files]
+    print("Reading resolution.csv for all files...")
+    resolution_gui_map = __get_resolution_gui_map(RESOLUTION_FILE)
+    print("Sucessfully read resolution.csv for all files!")
     for nr, f in enumerate(file_prefixes):
         # try parsing window size just to check that it's correctly parsed
         # adjust if needed
@@ -34,22 +46,37 @@ def main():
         print("---------- STARTING ANALYSIS FOR ONE FILE ----------")
         print(f"file: {f}")
         print(f"window: {w}")
-        # call tmt chimerys script
-        _ = tmt_chimerys_dda(
-            [
-                "-i",
-                f"{f}_PSMs.txt",
-                "-s",
-                f"{f}.mzML",
-                "-c",
-                "config.toml",
-                "-p",
-                f"{f}_Proteins.txt",
-                "-r",
-                RESOLUTION_FILE,
-                "-w",
-                w,
-            ]
+        # run tmt chimerys dda
+        settings = __read_settings(CONFIG_FILE)
+        settings["window_size"] = float(w)
+        print("Used settings:")
+        print(settings)
+        args_spectra = __convert(f"{f}.mzML")
+        spectra = __read_spectra_by_scannumber(args_spectra)
+        consensusXML_map = None
+        if USE_OPENMS:
+            consensusXML_df = __get_consensusXML_df(args_spectra)
+            consensusXML_map = __get_consensusXML_map(consensusXML_df)
+        df = __annotate_chimerys_result(
+            filename=f"{f}_PSMs.txt",
+            spectrum_filename=args_spectra,
+            spectra=spectra,
+            settings=settings,
+            consensusXML_map=consensusXML_map,
+            resolution_gui_map=resolution_gui_map,
+        )
+        df.to_csv(
+            f"{f}_PSMs_purity_tmt_quant.txt",
+            sep="\t",
+            index=False,
+        )
+        proteins_df = __annotate_chimerys_protein_table(
+            f"{f}_Proteins.txt", df, settings
+        )
+        proteins_df.to_csv(
+            f"{f}_Proteins_purity_tmt_quant.txt",
+            sep="\t",
+            index=False,
         )
         # console log
         print("---------- FINISHED ANALYSIS FOR ONE FILE ----------")
