@@ -17,10 +17,9 @@ jobs:
         python-version: '3.12'
     - name: Install dependencies
       run: |
-        sudo apt-get update && sudo apt-get install libgtk-3-dev
         python -m pip install --upgrade pip
         python -m pip install ruff
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -r requirements.txt
     - name: Lint with Ruff
       run: |
         ruff check
