@@ -20,15 +20,16 @@ import glob
 from tmt_chimerys import __get_resolution_gui_map
 from tmt_chimerys import __read_settings
 from tmt_chimerys import __convert
-from tmt_chimerys import __read_spectra_by_scannumber
+from tmt_spectronaut import __read_spectra
 from tmt_chimerys import __get_consensusXML_df
 from tmt_chimerys import __get_consensusXML_map
-from tmt_chimerys_dda import __annotate_chimerys_result
-from tmt_chimerys import __annotate_chimerys_protein_table
+from tmt_diann import __annotate_diann_result
 
 CONFIG_FILE = "config.toml"
 RESOLUTION_FILE = "resolution.csv"
 USE_OPENMS = True
+# Verbose level where 0: ignore all warnings and errors, 1: raise warnings, and >= 2: raise errors
+VERBOSE = 2
 
 
 def main():
@@ -40,8 +41,8 @@ def main():
     for nr, f in enumerate(file_prefixes):
         # try parsing window size just to check that it's correctly parsed
         # adjust if needed
-        _ = float(f.split("DDA_mz")[1].split("_")[0].replace("c", "."))
-        w = f.split("DDA_mz")[1].split("_")[0].replace("c", ".")
+        _ = float(f.split("DIA_mz")[1].split("_")[0].replace("c", "."))
+        w = f.split("DIA_mz")[1].split("_")[0].replace("c", ".")
         # console log
         print("---------- STARTING ANALYSIS FOR ONE FILE ----------")
         print(f"file: {f}")
@@ -52,30 +53,22 @@ def main():
         print("Used settings:")
         print(settings)
         args_spectra = __convert(f"{f}.mzML")
-        spectra = __read_spectra_by_scannumber(args_spectra)
+        spectra = __read_spectra(args_spectra)
         consensusXML_map = None
         if USE_OPENMS:
             consensusXML_df = __get_consensusXML_df(args_spectra)
             consensusXML_map = __get_consensusXML_map(consensusXML_df)
-        df = __annotate_chimerys_result(
-            filename=f"{f}_PSMs.txt",
+        df = __annotate_diann_result(
+            diann_filename=f"{f}_precursor.parquet",
             spectrum_filename=args_spectra,
             spectra=spectra,
             settings=settings,
             consensusXML_map=consensusXML_map,
             resolution_gui_map=resolution_gui_map,
+            verbose=VERBOSE,
         )
-        df.to_csv(
-            f"{f}_PSMs_purity_tmt_quant.txt",
-            sep="\t",
-            index=False,
-        )
-        proteins_df = __annotate_chimerys_protein_table(
-            f"{f}_Proteins.txt", df, settings
-        )
-        proteins_df.to_csv(
-            f"{f}_Proteins_purity_tmt_quant.txt",
-            sep="\t",
+        df.to_parquet(
+            f"{f}_precursor_purity_tmt_quant.parquet",
             index=False,
         )
         # console log

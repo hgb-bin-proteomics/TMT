@@ -1,0 +1,17 @@
+[project]
+name = "TMT"
+version = "2025.09.18"
+description = "TMTpro-18plex quantification for [single cell] DIA and DDA searches."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "gooey>=1.0.8.1",
+    "pandas>=2.3.3",
+    "pyarrow>=22.0.0",
+    "pyopenms>=3.4.0",
+    "pyright>=1.1.407",
+    "pyteomics[xml]>=4.7.5",
+    "pytest>=8.4.2",
+    "ruff>=0.14.2",
+    "tqdm>=4.67.1",
+]
