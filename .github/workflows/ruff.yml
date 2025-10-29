@@ -8,7 +8,7 @@ on:
 
 jobs:
   ruff:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.12
@@ -20,9 +20,6 @@ jobs:
         sudo apt-get update && sudo apt-get install libgtk-3-dev
         python -m pip install --upgrade pip
         python -m pip install ruff
-        python -m pip install -U \
-          -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-24.04 \
-          wxPython
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Lint with Ruff
       run: |
