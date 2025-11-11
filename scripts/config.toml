@@ -55,7 +55,7 @@ cond1 = ["TMTpro-126",  "TMTpro-127N", "TMTpro-127C", "TMTpro-128N", "TMTpro-128
          "TMTpro-129N", "TMTpro-129C", "TMTpro-130N", "TMTpro-130C"]
 cond2 = ["TMTpro-131N", "TMTpro-131C", "TMTpro-132N", "TMTpro-132C", "TMTpro-133N",
          "TMTpro-133C", "TMTpro-134N", "TMTpro-134C", "TMTpro-135N"]
-# please define the S/N thresholds per condition that should be used for protein aggregation here
-# this should be sn_threshold = map of thresholds for each condition
+# please define the min S/N thresholds per condition that should be used for protein aggregation here
+# this should be sn_thresholds = map of thresholds for each condition
 # see example below
 sn_thresholds = { all = 0.0, cond1 = 10.0, cond2 = 10.0 }
