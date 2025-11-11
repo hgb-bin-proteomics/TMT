@@ -359,7 +359,7 @@ def __get_conditions(toml_conditions: Dict[str, Any]) -> List[Dict[str, Any]]:
                 for reporter in toml_conditions[cond]
                 if __check_valid_reporter(reporter)
             ],
-            "sn": toml_conditions["sn_thresholds"][cond],
+            "sn": float(toml_conditions["sn_thresholds"][cond]),
         }
         conditions.append(condition)
     return conditions
