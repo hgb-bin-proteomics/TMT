@@ -205,6 +205,7 @@ def __annotate_chimerys_result_conditions(
     return psms
 
 
+# WIP
 def __annotate_chimerys_protein_df(
     protein_table: pd.DataFrame,
     psm_table: pd.DataFrame,
@@ -212,6 +213,7 @@ def __annotate_chimerys_protein_df(
     min_avg_reporter_sn: float,
     min_reporter_res: float,
     min_purity: float,
+    conditions: List[Dict[str, Any]],
 ) -> pd.DataFrame:
     has_resolution = "RESGUI_Resolution" in psm_table.columns.tolist()
     psms_by_proteins = dict()
@@ -268,10 +270,20 @@ def __annotate_chimerys_protein_df(
             if has_resolution:
                 for c in TMT.keys():
                     resgui_key = "RESGUI_" + c.split("-")[1] + " Resolution"
-                    if (
-                        pd.isna(float(psm[resgui_key]))
-                        or float(psm[resgui_key]) < min_reporter_res
-                    ):
+                    eligible_for_quant = True
+                    if pd.isna(float(psm[resgui_key])):
+                        eligible_for_quant = False
+                    if float(psm[resgui_key]) < min_reporter_res:
+                        eligible_for_quant = False
+                    for condition in conditions:
+                        if (
+                            c in condition["reporters"]
+                            and psm[f"Condition_SN_{condition['name']}"]
+                            < condition["sn"]
+                        ):
+                            eligible_for_quant = False
+                            break
+                    if not eligible_for_quant:
                         tmt_quants[c] += 0.0
                     else:
                         tmt_quants[c] += psm[f"Annotated {c}"]
@@ -302,6 +314,7 @@ def __annotate_chimerys_protein_table(
         min_avg_reporter_sn=min_avg_reporter_sn,
         min_reporter_res=min_reporter_res,
         min_purity=min_purity,
+        conditions=settings["conditions"],
     )
 
 
