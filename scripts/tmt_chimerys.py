@@ -293,6 +293,30 @@ def __get_key(mass: float) -> int:
     return int(round(mass * 10000))
 
 
+def __check_valid_reporter(reporter: str) -> bool:
+    if reporter not in TMT:
+        raise ValueError(f"Found invalid reporter label {reporter} in CONDITIONS!")
+    return True
+
+
+def __get_conditions(toml_conditions: Dict[str, Any]) -> List[Dict[str, Any]]:
+    conditions = list()
+    for cond in toml_conditions["sn_thresholds"]:
+        if cond not in toml_conditions:
+            raise KeyError(f"Did not find condition {cond} in CONDITIONS!")
+        condition = {
+            "name": cond,
+            "reporters": [
+                reporter
+                for reporter in toml_conditions[cond]
+                if __check_valid_reporter(reporter)
+            ],
+            "sn": toml_conditions["sn_thresholds"][cond],
+        }
+        conditions.append(condition)
+    return conditions
+
+
 def __read_settings(toml: str) -> Dict[str, Any]:
     parsed_toml = None
     with open(toml, "rb") as f:
@@ -304,6 +328,7 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "window_size": parsed_toml["METHOD"]["window_size"],
         "window_start": parsed_toml["METHOD"]["window_start"],
         "window_end": parsed_toml["METHOD"]["window_end"],
+        "window_overlap": parsed_toml["METHOD"]["window_overlap"],
         "mz_tolerance": parsed_toml["MATCHING"]["mz_tolerance"],
         "rt_tolerance": parsed_toml["MATCHING"]["rt_tolerance"],
         "rt_window": parsed_toml["MATCHING"]["ms1_rt_window"],
@@ -312,10 +337,12 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "deisotope": parsed_toml["ISOTOPES"]["consider_precursor_isotopes"],
         "isotope_tolerance": parsed_toml["ISOTOPES"]["isotope_tolerance"],
         "max_charge": parsed_toml["ISOTOPES"]["max_charge"],
+        "q_value": parsed_toml["PROTEIN"]["q_value"],
         "min_chimerys_coefficient": parsed_toml["PROTEIN"]["min_chimerys_coefficient"],
         "min_avg_reporter_sn": parsed_toml["PROTEIN"]["min_avg_reporter_sn"],
         "min_reporter_res": parsed_toml["PROTEIN"]["min_reporter_res"],
         "min_purity": parsed_toml["PROTEIN"]["min_purity"],
+        "conditions": __get_conditions(parsed_toml["CONDITIONS"]),
     }
 
 
