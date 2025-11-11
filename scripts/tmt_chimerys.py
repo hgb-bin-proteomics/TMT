@@ -170,6 +170,41 @@ def __convert(filename: str) -> str:
     return new_filename
 
 
+def __get_sn_for_condition(row: pd.Series, reporters: List[str]) -> float:
+    total_signal = 0.0
+    total_noise = 0.0
+    for reporter in reporters:
+        reporter_signal = 0.0
+        reporter_noise = 0.0
+        label = reporter.split("-")[1].strip()
+        if label == "134C":
+            if not pd.isna(row["RESGUI_134C Intesntiy"]):  # pyright: ignore[reportGeneralTypeIssues]
+                reporter_signal = float(row["RESGUI_134C Intesntiy"])
+            if not pd.isna(row["RESGUI_134C Noise"]):  # pyright: ignore[reportGeneralTypeIssues]
+                reporter_noise = float(row["RESGUI_134C Noise"])
+        else:
+            if not pd.isna(row[f"RESGUI_{label} Intensity"]):  # pyright: ignore[reportGeneralTypeIssues]
+                reporter_signal = float(row[f"RESGUI_{label} Intensity"])
+            if not pd.isna(row[f"RESGUI_{label} Noise"]):  # pyright: ignore[reportGeneralTypeIssues]
+                reporter_noise = float(row[f"RESGUI_{label} Noise"])
+        total_signal += reporter_signal
+        total_noise += reporter_noise
+    return total_signal / total_noise
+
+
+def __annotate_chimerys_result_conditions(
+    psms: pd.DataFrame, conditions: List[Dict[str, Any]]
+) -> pd.DataFrame:
+    has_resolution = "RESGUI_Resolution" in psms.columns.tolist()
+    if not has_resolution:
+        return psms
+    for condition in conditions:
+        psms[f"Condition_SN_{condition['name']}"] = psms.apply(
+            lambda row: __get_sn_for_condition(row, condition["reporters"]), axis=1
+        )
+    return psms
+
+
 def __annotate_chimerys_protein_df(
     protein_table: pd.DataFrame,
     psm_table: pd.DataFrame,
@@ -992,6 +1027,12 @@ def main(argv=None) -> pd.DataFrame:
     )
     df.to_csv(
         args.chimerys.split(".txt")[0] + "_purity_tmt_quant.txt",
+        sep="\t",
+        index=False,
+    )
+    df = __annotate_chimerys_result_conditions(df, settings["conditions"])
+    df.to_csv(
+        args.chimerys.split(".txt")[0] + "_purity_tmt_quant_conditions.txt",
         sep="\t",
         index=False,
     )
