@@ -43,7 +43,7 @@ min_reporter_res = 45000.0
 # minimum purity for a PSM to be considered for aggregation
 min_purity = 0.7
 
-[Conditions]
+[CONDITIONS]
 # please define your conditions here
 # conditions should be given as condition name (without spaces) following an equal sign and then a list of TMT reporters
 # see examples below
