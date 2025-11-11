@@ -5,6 +5,8 @@ window_size = 0.5
 window_start = 400.0
 # window end (m/z)
 window_end = 800.0
+# window overlap
+window_overlap = 0.0
 
 [MATCHING]
 # m/z tolerance for matching peaks in Dalton
@@ -23,17 +25,38 @@ isotope_tolerance = 0.01
 max_charge = 6
 
 [FILTERING]
-# precursor intensity fraction in the window to use as reference
+# precursor intensity fraction in the window to use as reference, only used for displaying some preliminary statistics
+# for filtering use PROTEIN.min_purity
 total_intensity_threshold = 0.7
 # minimum relative intensity threshold compared to most intense peak in window to not be considered noise
 noise_threshold = 0.1
 
 [PROTEIN]
-# Normalized Chimerys Coefficient Threshold, anything below will be ignored
+# Qvalue that should be used for filtering
+q_value = 0.01
+# Normalized Chimerys Coefficient Threshold, anything below will be ignored, only applies to Chimerys
 min_chimerys_coefficient = 1.0
-# minimum average reporter S/N for a PSM to be considered for aggregation
+# minimum average reporter S/N for a PSM to be considered for aggregation, only applies to Chimerys
 min_avg_reporter_sn = 10.0
 # minimum reporter resolution to be considered for aggregation
 min_reporter_res = 45000.0
 # minimum purity for a PSM to be considered for aggregation
 min_purity = 0.7
+
+[Conditions]
+# please define your conditions here
+# conditions should be given as condition name (without spaces) following an equal sign and then a list of TMT reporters
+# see examples below
+all = ["TMTpro-126",  "TMTpro-127N", "TMTpro-127C", "TMTpro-128N", "TMTpro-128C",
+       "TMTpro-129N", "TMTpro-129C", "TMTpro-130N", "TMTpro-130C", "TMTpro-131N",
+       "TMTpro-131C", "TMTpro-132N", "TMTpro-132C", "TMTpro-133N", "TMTpro-133C",
+       "TMTpro-134N", "TMTpro-134C", "TMTpro-135N"]
+cond1 = ["TMTpro-126",  "TMTpro-127N", "TMTpro-127C", "TMTpro-128N", "TMTpro-128C",
+         "TMTpro-129N", "TMTpro-129C", "TMTpro-130N", "TMTpro-130C"]
+cond2 = ["TMTpro-131N", "TMTpro-131C", "TMTpro-132N", "TMTpro-132C", "TMTpro-133N",
+         "TMTpro-133C", "TMTpro-134N", "TMTpro-134C", "TMTpro-135N"]
+# please define the S/N thresholds per condition that should be used for protein aggregation here
+# this should be sn_threshold = list of thresholds for each condition in the order of how the conditions
+# were given
+# see example below
+sn_thresholds = [0.0, 10.0, 10.0]
