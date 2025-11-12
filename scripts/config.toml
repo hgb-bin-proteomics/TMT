@@ -32,7 +32,7 @@ total_intensity_threshold = 0.7
 noise_threshold = 0.1
 
 [PROTEIN]
-# Qvalue that should be used for filtering
+# Qvalue that should be used for filtering, only used for DIA-NN and Spectronaut
 q_value = 0.01
 # Normalized Chimerys Coefficient Threshold, anything below will be ignored, only applies to Chimerys
 min_chimerys_coefficient = 1.0
