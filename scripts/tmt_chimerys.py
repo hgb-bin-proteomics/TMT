@@ -1045,14 +1045,6 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument(
         "-w",
         "--window",
-        dest="window",
-        default=None,
-        help="Window size, overrides config file!",
-        type=float,
-    )
-    parser.add_argument(
-        "-wf",
-        "--window-file",
         dest="window_file",
         default=None,
         help="Window file, overrides config file!",
@@ -1069,9 +1061,9 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
-    if args.window is not None:
-        settings["window_size"] = float(args.window)
     print(settings)
+    if args.window_file is not None:
+        print(f"Using windows from given windows file: {args.window_file}")
     args_spectra = __convert(args.spectra)
     spectra = __read_spectra_by_scannumber(args_spectra)
     consensusXML_map = None
