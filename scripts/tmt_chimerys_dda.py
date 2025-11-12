@@ -42,8 +42,8 @@ from tmt_chimerys import __annotate_chimerys_result_conditions
 from tmt_chimerys import __annotate_chimerys_protein_table
 from tmt_chimerys import __convert
 
-__version = "1.0.4"
-__date = "2025-09-18"
+__version = "2.0.0"
+__date = "2025-11-12"
 
 ISOTOPE = 1.00335
 STRATEGY = 1
