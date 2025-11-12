@@ -205,7 +205,6 @@ def __annotate_chimerys_result_conditions(
     return psms
 
 
-# WIP
 def __annotate_chimerys_protein_df(
     protein_table: pd.DataFrame,
     psm_table: pd.DataFrame,
