@@ -34,7 +34,7 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "2.0.0"
+__version = "2.0.1"
 __date = "2025-11-12"
 
 TMT_TOLERANCE = 0.0025
@@ -732,10 +732,22 @@ def __calculate_purity(
     return precursor_intensity / total_intensity_in_window
 
 
+def __get_optimal_window(
+    windows: List[Tuple[float, float]], spectrum: Dict[str, Any]
+) -> List[Tuple[float, float]]:
+    deviations = list()
+    for window in windows:
+        center = window[0] + (window[1] - window[0]) / 2.0
+        deviation = abs(center - spectrum["precursor"])
+        deviations.append(deviation)
+    return [windows[deviations.index(min(deviations))]]
+
+
 # calculates the purity for a given precursor
 def __calculate_precursor_intensity_ms1(
     precursor_mz: float,
     spectrum: Dict[str, Any],  # MS1 spectrum
+    spectrum_ms2: Dict[str, Any],  # MS2 spectrum
     mz_tol: float,
     do_deisotope: bool,
     isotope_tol: float,
@@ -794,6 +806,10 @@ def __calculate_precursor_intensity_ms1(
         raise RuntimeError(
             f"Could not find matching window for precursor m/z {precursor_mz}!"
         )
+    # select optimal window?
+    select_optimal_window = True
+    if len(matching_windows) > 1 and select_optimal_window:
+        matching_windows = __get_optimal_window(matching_windows, spectrum_ms2)
     # if there are multiple matching windows, we calculate the purity of every window
     # and return the minimum purity
     purities = list()
@@ -857,6 +873,7 @@ def __get_ms2_spectrum_by_scannumber(
     purity = __calculate_precursor_intensity_ms1(
         precursor_mz,
         ms1,
+        spectrum,
         mz_tol,
         do_deisotope,
         isotope_tol,
