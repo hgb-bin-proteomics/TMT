@@ -276,6 +276,7 @@ def __get_ms2_spectrum(
     purity = __calculate_precursor_intensity_ms1(
         precursor_mz,
         ms1,
+        spectrum,
         mz_tol,
         do_deisotope,
         isotope_tol,
@@ -295,6 +296,7 @@ def __annotate_spectronaut_result(
     settings: Dict[str, Any],
     consensusXML_map: Optional[Dict[int, Dict[int, pd.Series]]] = None,
     resolution_gui_map: Optional[Dict[str, Dict[int, pd.Series]]] = None,
+    window_file: Optional[str] = None,
     verbose: int = 2,
 ) -> pd.DataFrame:
     # spectra should be given by __read_spectra
@@ -330,6 +332,8 @@ def __annotate_spectronaut_result(
             float(settings["window_start"]),
             float(settings["window_end"]),
             float(settings["window_size"]),
+            float(settings["window_overlap"]),
+            window_file,
         )
         # isotope parameters
         do_deisotope = __get_bool_from_value(settings["deisotope"])
@@ -442,10 +446,10 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument(
         "-w",
         "--window",
-        dest="window",
+        dest="window_file",
         default=None,
-        help="Window size, overrides config file!",
-        type=float,
+        help="Window file, overrides config file!",
+        type=str,
     )
     parser.add_argument(
         "-n",
@@ -466,9 +470,9 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
-    if args.window is not None:
-        settings["window_size"] = float(args.window)
     print(settings)
+    if args.window_file is not None:
+        print(f"Using windows from given windows file: {args.window_file}")
     args_spectra = __convert(args.spectra)
     spectra = __read_spectra(args_spectra)
     consensusXML_map = None
@@ -486,6 +490,7 @@ def main(argv=None) -> pd.DataFrame:
         consensusXML_map=consensusXML_map,
         resolution_gui_map=resolution_gui_map,
         verbose=int(args.verbose),
+        window_file=args.window_file,
     )
     df.to_csv(
         args.spectronaut.split(".csv")[0] + "_purity_tmt_quant.csv",
