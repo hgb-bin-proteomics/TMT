@@ -643,69 +643,17 @@ def __check_mz_in_ms1(
     return False
 
 
-# calculates the purity for a given precursor
-def __calculate_precursor_intensity_ms1(
-    precursor_mz: float,
+def __calculate_purity(
     spectrum: Dict[str, Any],  # MS1 spectrum
-    mz_tol: float,
-    do_deisotope: bool,
-    isotope_tol: float,
+    matching_window: Tuple[float, float],
+    precursor: float,
+    precursor_index: int,
+    precursor_intensity: float,
     max_charge: int,
     noise_threshold: float,
-    windows: List[Tuple[float, float]],
-) -> float | None:
-    # parameter windows should define all DIA windows including their start and
-    # end points (in m/z)
-    precursor = None
-    precursor_index = None
-    precursor_intensity = None
-    # first look for the precursor in the MS1 spectrum
-    for i in range(len(spectrum["mz_array"])):
-        if __within_tolerance(spectrum["mz_array"][i], precursor_mz, mz_tol):
-            # if no precursor yet found, set precursor
-            if precursor is None:
-                precursor = spectrum["mz_array"][i]
-                precursor_index = i
-                precursor_intensity = spectrum["intensity_array"][i]
-            # else we need to deal with the fact that there is multiple potential
-            # precursors
-            else:
-                # todo clarify behaviour
-                if STRATEGY == 1:
-                    # use precursor with highest intensity
-                    if spectrum["intensity_array"][i] > precursor_intensity:
-                        precursor = spectrum["mz_array"][i]
-                        precursor_index = i
-                        precursor_intensity = spectrum["intensity_array"][i]
-                elif STRATEGY == 2:
-                    # do not use identification
-                    return None
-                elif STRATEGY == 3:
-                    # use closest precursor
-                    raise NotImplementedError()
-                else:
-                    raise RuntimeError(
-                        f"Found ambiguous precursors in MS1 spectrum for precursor m/z {precursor_mz} using MS1 spectrum at retention time {spectrum['rt']}."
-                    )
-    # if no precursor is found an error is raised
-    if precursor is None or precursor_index is None or precursor_intensity is None:
-        warnings.warn(
-            RuntimeWarning(
-                f"Could not find precursor in MS1 spectrum with scan number {spectrum['scan_nr']}."
-            )
-        )
-        return None
-    # find the corresponding m/z window that the precursor is in
-    matching_window = None
-    for window in windows:
-        if precursor > window[0] and precursor <= window[1]:
-            matching_window = window
-            break
-    # if no matching window is found an error is raised
-    if matching_window is None:
-        raise RuntimeError(
-            f"Could not find matching window for precursor m/z {precursor_mz}!"
-        )
+    do_deisotope: bool,
+    isotope_tol: float,
+) -> float:
     # get highest intensity peak in window
     most_intense_peak = 0.0
     peaks_in_window_mz = list()
@@ -782,6 +730,88 @@ def __calculate_precursor_intensity_ms1(
                 total_intensity_in_window += spectrum["intensity_array"][i]
     # return intensity ratio (purity)
     return precursor_intensity / total_intensity_in_window
+
+
+# calculates the purity for a given precursor
+def __calculate_precursor_intensity_ms1(
+    precursor_mz: float,
+    spectrum: Dict[str, Any],  # MS1 spectrum
+    mz_tol: float,
+    do_deisotope: bool,
+    isotope_tol: float,
+    max_charge: int,
+    noise_threshold: float,
+    windows: List[Tuple[float, float]],
+) -> float | None:
+    # parameter windows should define all DIA windows including their start and
+    # end points (in m/z)
+    precursor = None
+    precursor_index = None
+    precursor_intensity = None
+    # first look for the precursor in the MS1 spectrum
+    for i in range(len(spectrum["mz_array"])):
+        if __within_tolerance(spectrum["mz_array"][i], precursor_mz, mz_tol):
+            # if no precursor yet found, set precursor
+            if precursor is None:
+                precursor = spectrum["mz_array"][i]
+                precursor_index = i
+                precursor_intensity = spectrum["intensity_array"][i]
+            # else we need to deal with the fact that there is multiple potential
+            # precursors
+            else:
+                # todo clarify behaviour
+                if STRATEGY == 1:
+                    # use precursor with highest intensity
+                    if spectrum["intensity_array"][i] > precursor_intensity:
+                        precursor = spectrum["mz_array"][i]
+                        precursor_index = i
+                        precursor_intensity = spectrum["intensity_array"][i]
+                elif STRATEGY == 2:
+                    # do not use identification
+                    return None
+                elif STRATEGY == 3:
+                    # use closest precursor
+                    raise NotImplementedError()
+                else:
+                    raise RuntimeError(
+                        f"Found ambiguous precursors in MS1 spectrum for precursor m/z {precursor_mz} using MS1 spectrum at retention time {spectrum['rt']}."
+                    )
+    # if no precursor is found an error is raised
+    if precursor is None or precursor_index is None or precursor_intensity is None:
+        warnings.warn(
+            RuntimeWarning(
+                f"Could not find precursor in MS1 spectrum with scan number {spectrum['scan_nr']}."
+            )
+        )
+        return None
+    # find the corresponding m/z window(s) that the precursor is in
+    matching_windows = list()
+    for window in windows:
+        if precursor > window[0] and precursor <= window[1]:
+            matching_windows.append(window)
+    # if no matching window is found an error is raised
+    if len(matching_windows) == 0:
+        raise RuntimeError(
+            f"Could not find matching window for precursor m/z {precursor_mz}!"
+        )
+    # if there are multiple matching windows, we calculate the purity of every window
+    # and return the minimum purity
+    purities = list()
+    for matching_window in matching_windows:
+        purities.append(
+            __calculate_purity(
+                spectrum,
+                matching_window,
+                precursor,
+                precursor_index,
+                precursor_intensity,
+                max_charge,
+                noise_threshold,
+                do_deisotope,
+                isotope_tol,
+            )
+        )
+    return min(purities)
 
 
 def __get_ms2_spectrum_by_scannumber(
