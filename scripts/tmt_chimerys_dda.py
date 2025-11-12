@@ -38,6 +38,7 @@ from tmt_chimerys import __read_spectra_by_scannumber
 from tmt_chimerys import __get_key
 from tmt_chimerys import __within_tolerance
 from tmt_chimerys import __check_mz_in_ms1
+from tmt_chimerys import __annotate_chimerys_result_conditions
 from tmt_chimerys import __annotate_chimerys_protein_table
 from tmt_chimerys import __convert
 
@@ -403,6 +404,12 @@ def main(argv=None) -> pd.DataFrame:
     )
     df.to_csv(
         args.chimerys.split(".txt")[0] + "_purity_tmt_quant.txt",
+        sep="\t",
+        index=False,
+    )
+    df = __annotate_chimerys_result_conditions(df, settings["conditions"])
+    df.to_csv(
+        args.chimerys.split(".txt")[0] + "_purity_tmt_quant_conditions.txt",
         sep="\t",
         index=False,
     )
