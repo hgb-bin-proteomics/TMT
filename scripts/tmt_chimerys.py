@@ -870,17 +870,28 @@ def __get_ms2_spectrum_by_scannumber(
 # given window start and end points (in m/z) and a window size, calculate all
 # m/z windows
 def __get_windows(
-    window_start: float, window_end: float, window_size: float
+    window_start: float,
+    window_end: float,
+    window_size: float,
+    window_overlap: float,
+    window_file: Optional[str],
 ) -> List[Tuple[float, float]]:
     windows = list()
-    current_window_start = window_start
-    while current_window_start < window_end:
-        current_window_end = current_window_start + window_size
-        if current_window_end > window_end:
-            windows.append((current_window_start, window_end))
-            break
-        windows.append((current_window_start, current_window_end))
-        current_window_start += window_size
+    if window_file is None:
+        current_window_start = window_start
+        while current_window_start < window_end:
+            current_window_end = current_window_start + window_size
+            if current_window_end > window_end:
+                windows.append((current_window_start, window_end))
+                break
+            windows.append((current_window_start, current_window_end))
+            current_window_start = current_window_start + window_size - window_overlap
+    else:
+        df = pd.read_csv(window_file)
+        for i, row in df.iterrows():
+            w1 = str(row["m/z range"]).split("-")[0]
+            w2 = str(row["m/z range"]).split("-")[1]
+            windows.append((float(w1), float(w2)))
     return windows
 
 
@@ -893,6 +904,7 @@ def __annotate_chimerys_result(
     settings: Dict[str, Any],
     consensusXML_map: Optional[Dict[int, Dict[int, pd.Series]]] = None,
     resolution_gui_map: Optional[Dict[str, Dict[int, pd.Series]]] = None,
+    window_file: Optional[str] = None,
 ) -> pd.DataFrame:
     # spectra should be given by __read_spectra_by_scannumber
     # settings should be given by __read_settings
@@ -923,6 +935,8 @@ def __annotate_chimerys_result(
             float(settings["window_start"]),
             float(settings["window_end"]),
             float(settings["window_size"]),
+            float(settings["window_overlap"]),
+            window_file,
         )
         # isotope parameters
         do_deisotope = __get_bool_from_value(settings["deisotope"])
@@ -1037,6 +1051,14 @@ def main(argv=None) -> pd.DataFrame:
         type=float,
     )
     parser.add_argument(
+        "-wf",
+        "--window-file",
+        dest="window_file",
+        default=None,
+        help="Window file, overrides config file!",
+        type=str,
+    )
+    parser.add_argument(
         "-n",
         "--native",
         dest="native",
@@ -1066,6 +1088,7 @@ def main(argv=None) -> pd.DataFrame:
         settings=settings,
         consensusXML_map=consensusXML_map,
         resolution_gui_map=resolution_gui_map,
+        window_file=args.window_file,
     )
     df.to_csv(
         args.chimerys.split(".txt")[0] + "_purity_tmt_quant.txt",
