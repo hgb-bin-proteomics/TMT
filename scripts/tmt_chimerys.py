@@ -34,8 +34,8 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "1.0.6"
-__date = "2025-09-18"
+__version = "2.0.0"
+__date = "2025-11-12"
 
 TMT_TOLERANCE = 0.0025
 TMT = {
