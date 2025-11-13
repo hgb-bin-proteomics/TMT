@@ -31,6 +31,15 @@ total_intensity_threshold = 0.7
 # minimum relative intensity threshold compared to most intense peak in window to not be considered noise
 noise_threshold = 0.1
 
+[QUANTIFICATION]
+# subtract the reporter noise from the reporter signal?
+subtract_noise = true
+# quantification method to use
+# 1 = native
+# 2 = OpenMS
+# 3 = Resolution GUI
+quantification_method = 2
+
 [PROTEIN]
 # Qvalue that should be used for filtering, only used for DIA-NN and Spectronaut
 q_value = 0.01
