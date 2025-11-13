@@ -384,6 +384,8 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "deisotope": parsed_toml["ISOTOPES"]["consider_precursor_isotopes"],
         "isotope_tolerance": parsed_toml["ISOTOPES"]["isotope_tolerance"],
         "max_charge": parsed_toml["ISOTOPES"]["max_charge"],
+        "subtract_noise": parsed_toml["QUANTIFICATION"]["subtract_noise"],
+        "quantification_method": parsed_toml["QUANTIFICATION"]["quantification_method"],
         "q_value": parsed_toml["PROTEIN"]["q_value"],
         "min_chimerys_coefficient": parsed_toml["PROTEIN"]["min_chimerys_coefficient"],
         "min_avg_reporter_sn": parsed_toml["PROTEIN"]["min_avg_reporter_sn"],
@@ -528,6 +530,42 @@ def __get_resolution_gui_values(
     for col in RESOLUTION_GUI_COLS:
         data[f"RESGUI_{col}"] = row[col]
     return data
+
+
+def __get_tmt_intensities_resgui(
+    spectrum: Dict[str, Any],
+    resolution_gui_map: Dict[str, Dict[int, pd.Series]],
+    spectrum_filename: str,
+) -> Dict[str, float]:
+    resolution_gui_values = __get_resolution_gui_values(
+        spectrum, resolution_gui_map, spectrum_filename
+    )
+    tmt_quants = {key: 0.0 for key in TMT.keys()}
+    for reporter_ion_name in TMT.keys():
+        channel = reporter_ion_name.split("-")[1].strip()
+        descriptor = "Intesntiy" if channel == "134C" else "Intensity"
+        resgui_col = f"RESGUI_{channel} {descriptor}"
+        tmt_quants[reporter_ion_name] += resolution_gui_values[resgui_col]
+    return tmt_quants
+
+
+def __subtract_noise(
+    tmt_quants: Dict[str, float],
+    spectrum: Dict[str, Any],
+    resolution_gui_map: Dict[str, Dict[int, pd.Series]],
+    spectrum_filename: str,
+) -> Dict[str, float]:
+    resolution_gui_values = __get_resolution_gui_values(
+        spectrum, resolution_gui_map, spectrum_filename
+    )
+    new_tmt_quants = dict()
+    for reporter_ion_name in TMT.keys():
+        channel = reporter_ion_name.split("-")[1].strip()
+        resgui_col = f"RESGUI_{channel} Noise"
+        new_tmt_quants[reporter_ion_name] = (
+            tmt_quants[reporter_ion_name] - resolution_gui_values[resgui_col]
+        )
+    return new_tmt_quants
 
 
 def __parse_scan_nr_from_id(id: str) -> int:
@@ -932,6 +970,13 @@ def __annotate_chimerys_result(
     parsed_scannr = list()
     nr_of_missing_ms1 = 0
     nr_of_impure_ids = 0
+    quantification_method = int(settings["quantification_method"])
+    if quantification_method == 1:
+        print("Using native quantification!")
+    elif quantification_method == 3:
+        print("Using Resolution GUI quantification!")
+    else:
+        print("Using OpenMS quantification!")
     for i, row in tqdm(
         df.iterrows(), total=df.shape[0], desc="Annotating Chimerys result..."
     ):
@@ -959,6 +1004,8 @@ def __annotate_chimerys_result(
         do_deisotope = __get_bool_from_value(settings["deisotope"])
         isotope_tolerance = float(settings["isotope_tolerance"])
         max_charge = int(settings["max_charge"])
+        # normalization
+        subtract_noise = __get_bool_from_value(settings["subtract_noise"])
         # get corresponding MS2 spectrum for identification
         spectrum_purity = __get_ms2_spectrum_by_scannumber(
             scan_nr,
@@ -974,10 +1021,33 @@ def __annotate_chimerys_result(
         )
         spectrum = spectrum_purity["spectrum"]
         purity = spectrum_purity["purity"]
-        if consensusXML_map is None:
+        if quantification_method == 1:
             tmt_quants = __get_tmt_intensities(spectrum)
+        elif quantification_method == 3:
+            if resolution_gui_map is None:
+                raise ValueError(
+                    "Quantification method Resolution GUI was selected but no resolution file was found!"
+                )
+            else:
+                tmt_quants = __get_tmt_intensities_resgui(
+                    spectrum, resolution_gui_map, spectrum_filename
+                )
         else:
-            tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
+            if consensusXML_map is None:
+                raise ValueError(
+                    "Quantification method OpenMS was selected but no consensusXML was found!"
+                )
+            else:
+                tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
+        if subtract_noise:
+            if resolution_gui_map is None:
+                raise ValueError(
+                    "Subtract noise was set to true but no resolution file was found!"
+                )
+            else:
+                tmt_quants = __subtract_noise(
+                    tmt_quants, spectrum, resolution_gui_map, spectrum_filename
+                )
         for key in channels.keys():
             channels[key].append(tmt_quants[key])
         if resolution_gui_map is None:
@@ -1067,14 +1137,6 @@ def main(argv=None) -> pd.DataFrame:
         help="Window file, overrides config file!",
         type=str,
     )
-    parser.add_argument(
-        "-n",
-        "--native",
-        dest="native",
-        default=False,
-        action="store_true",
-        help="Use native quantification instead of OpenMS quantification which is used by default.",
-    )
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
@@ -1083,8 +1145,9 @@ def main(argv=None) -> pd.DataFrame:
         print(f"Using windows from given windows file: {args.window_file}")
     args_spectra = __convert(args.spectra)
     spectra = __read_spectra_by_scannumber(args_spectra)
+    quantification_method = int(settings["quantification_method"])
     consensusXML_map = None
-    if not args.native:
+    if quantification_method != 1 and quantification_method != 3:
         consensusXML_df = __get_consensusXML_df(args_spectra)
         consensusXML_map = __get_consensusXML_map(consensusXML_df)
     resolution_gui_map = None
