@@ -37,6 +37,8 @@ from tmt_chimerys import __get_consensusXML_df
 from tmt_chimerys import __get_consensusXML_map
 from tmt_chimerys import __get_resolution_gui_map
 from tmt_chimerys import __get_resolution_gui_values
+from tmt_chimerys import __get_tmt_intensities_resgui
+from tmt_chimerys import __subtract_noise
 from tmt_chimerys import __get_key
 from tmt_chimerys import __parse_scan_nr_from_id
 from tmt_chimerys import __check_mz_in_ms1
@@ -308,6 +310,13 @@ def __annotate_spectronaut_result(
     parsed_scannr = list()
     nr_of_missing_ms1 = 0
     nr_of_impure_ids = 0
+    quantification_method = int(settings["quantification_method"])
+    if quantification_method == 1:
+        print("Using native quantification!")
+    elif quantification_method == 3:
+        print("Using Resolution GUI quantification!")
+    else:
+        print("Using OpenMS quantification!")
     for i, row in tqdm(
         df.iterrows(), total=df.shape[0], desc="Annotating Spectronaut result..."
     ):
@@ -339,6 +348,8 @@ def __annotate_spectronaut_result(
         do_deisotope = __get_bool_from_value(settings["deisotope"])
         isotope_tolerance = float(settings["isotope_tolerance"])
         max_charge = int(settings["max_charge"])
+        # normalization
+        subtract_noise = __get_bool_from_value(settings["subtract_noise"])
         # get corresponding MS2 spectrum for identification
         spectrum_purity = __get_ms2_spectrum(
             prec_mz,
@@ -359,10 +370,33 @@ def __annotate_spectronaut_result(
         purity = spectrum_purity["purity"]
         # if a spectrum is found -> purity and quantify
         if spectrum is not None:
-            if consensusXML_map is None:
+            if quantification_method == 1:
                 tmt_quants = __get_tmt_intensities(spectrum)
+            elif quantification_method == 3:
+                if resolution_gui_map is None:
+                    raise ValueError(
+                        "Quantification method Resolution GUI was selected but no resolution file was found!"
+                    )
+                else:
+                    tmt_quants = __get_tmt_intensities_resgui(
+                        spectrum, resolution_gui_map, spectrum_filename
+                    )
             else:
-                tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
+                if consensusXML_map is None:
+                    raise ValueError(
+                        "Quantification method OpenMS was selected but no consensusXML was found!"
+                    )
+                else:
+                    tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
+            if subtract_noise:
+                if resolution_gui_map is None:
+                    raise ValueError(
+                        "Subtract noise was set to true but no resolution file was found!"
+                    )
+                else:
+                    tmt_quants = __subtract_noise(
+                        tmt_quants, spectrum, resolution_gui_map, spectrum_filename
+                    )
             for key in channels.keys():
                 channels[key].append(tmt_quants[key])
             if resolution_gui_map is None:
@@ -452,14 +486,6 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
     )
     parser.add_argument(
-        "-n",
-        "--native",
-        dest="native",
-        default=False,
-        action="store_true",
-        help="Use native quantification instead of OpenMS quantification which is used by default.",
-    )
-    parser.add_argument(
         "-v",
         "--verbose",
         dest="verbose",
@@ -475,8 +501,9 @@ def main(argv=None) -> pd.DataFrame:
         print(f"Using windows from given windows file: {args.window_file}")
     args_spectra = __convert(args.spectra)
     spectra = __read_spectra(args_spectra)
+    quantification_method = int(settings["quantification_method"])
     consensusXML_map = None
-    if not args.native:
+    if quantification_method != 1 and quantification_method != 3:
         consensusXML_df = __get_consensusXML_df(args_spectra)
         consensusXML_map = __get_consensusXML_map(consensusXML_df)
     resolution_gui_map = None
