@@ -41,8 +41,8 @@ from tmt_chimerys import __convert
 from tmt_spectronaut import __read_spectra
 from tmt_spectronaut import __get_ms2_spectrum
 
-__version = "1.0.2"
-__date = "2025-09-18"
+__version = "1.1.0"
+__date = "2025-11-13"
 
 
 # annotates the DIA-NN result with TMT quantities
