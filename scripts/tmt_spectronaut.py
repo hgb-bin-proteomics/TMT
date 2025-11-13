@@ -46,8 +46,8 @@ from tmt_chimerys import __calculate_precursor_intensity_ms1
 from tmt_chimerys import __get_windows
 from tmt_chimerys import __convert
 
-__version = "1.0.2"
-__date = "2025-09-18"
+__version = "1.1.0"
+__date = "2025-11-13"
 
 
 # read mass spectra from an mzML file
