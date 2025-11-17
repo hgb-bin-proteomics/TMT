@@ -35,6 +35,7 @@ from tmt_chimerys import __get_consensusXML_map
 from tmt_chimerys import __get_resolution_gui_map
 from tmt_chimerys import __get_resolution_gui_values
 from tmt_chimerys import __get_tmt_intensities_resgui
+from tmt_chimerys import __annotate_result_conditions
 from tmt_chimerys import __subtract_noise
 from tmt_chimerys import __get_windows
 from tmt_chimerys import __convert
@@ -277,6 +278,11 @@ def main(argv=None) -> pd.DataFrame:
     )
     df.to_parquet(
         args.diann.split(".parquet")[0] + "_purity_tmt_quant.parquet", index=False
+    )
+    df = __annotate_result_conditions(df, settings["conditions"])
+    df.to_parquet(
+        args.diann.split(".parquet")[0] + "_purity_tmt_quant_conditions.parquet",
+        index=False,
     )
     return df
 
