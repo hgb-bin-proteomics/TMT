@@ -51,6 +51,8 @@ min_avg_reporter_sn = 10.0
 min_reporter_res = 45000.0
 # minimum purity for a PSM to be considered for aggregation
 min_purity = 0.7
+# whether or not ambiguous protein groups should be filtered out, only used for DIA-NN and Spectronaut
+keep_ambiguous_protein_groups = false
 
 [CONDITIONS]
 # please define your conditions here

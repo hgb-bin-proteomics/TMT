@@ -391,6 +391,7 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "min_avg_reporter_sn": parsed_toml["PROTEIN"]["min_avg_reporter_sn"],
         "min_reporter_res": parsed_toml["PROTEIN"]["min_reporter_res"],
         "min_purity": parsed_toml["PROTEIN"]["min_purity"],
+        "keep_pg": parsed_toml["PROTEIN"]["keep_ambiguous_protein_groups"],
         "conditions": __get_conditions(parsed_toml["CONDITIONS"]),
     }
 
