@@ -1087,7 +1087,7 @@ def __annotate_chimerys_result(
 
 @Gooey(
     encoding="utf-8",
-    program_name=f"TMT Chimerys {__version}",
+    program_name=f"TMT Chimerys DIA {__version}",
     menu=[
         {
             "name": "Help",
