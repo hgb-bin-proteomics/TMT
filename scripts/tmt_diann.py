@@ -312,7 +312,7 @@ def main(argv=None) -> pd.DataFrame:
         "-c",
         "--config",
         dest="config",
-        default=None,
+        required=True,
         help="Path/name of the config file.",
         type=str,
     )
