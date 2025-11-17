@@ -301,7 +301,7 @@ def __annotate_chimerys_protein_table(
     psm_table: pd.DataFrame,
     settings: Dict[str, Any],
 ) -> pd.DataFrame:
-    protein_df = pd.read_csv(protein_table, sep="\t")
+    protein_df = pd.read_csv(protein_table, sep="\t", low_memory=False)
     min_chimerys_coefficient = float(settings["min_chimerys_coefficient"])
     min_avg_reporter_sn = float(settings["min_avg_reporter_sn"])
     min_reporter_res = float(settings["min_reporter_res"])
