@@ -51,6 +51,15 @@ __version = "1.1.0"
 __date = "2025-11-13"
 
 
+def __annotate_spectronaut_protein_table(
+    protein_table: str,
+    psm_table: pd.DataFrame,
+    settings: Dict[str, Any],
+) -> pd.DataFrame:
+    # TODO
+    return psm_table
+
+
 # read mass spectra from an mzML file
 def __read_spectra(filename: str) -> Dict[str, Any]:
     # reads an mzML file and sorts spectra into an easily accessible data structure
@@ -470,6 +479,15 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
     )
     parser.add_argument(
+        "-p",
+        "--proteins",
+        dest="proteins",
+        required=False,
+        default=None,
+        help="Path/name of the Spectronaut protein result file in comma-separated .csv format.",
+        type=str,
+    )
+    parser.add_argument(
         "-r",
         "--resolution",
         dest="resolution",
@@ -531,6 +549,13 @@ def main(argv=None) -> pd.DataFrame:
         sep=",",
         index=False,
     )
+    if args.proteins is not None:
+        proteins_df = __annotate_spectronaut_protein_table(args.proteins, df, settings)
+        proteins_df.to_csv(
+            args.proteins.split(".csv")[0] + "_purity_tmt_quant_pg.csv",
+            sep=",",
+            index=False,
+        )
     return df
 
 
