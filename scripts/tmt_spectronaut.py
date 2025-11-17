@@ -47,8 +47,10 @@ from tmt_chimerys import __calculate_precursor_intensity_ms1
 from tmt_chimerys import __get_windows
 from tmt_chimerys import __convert
 
-__version = "1.1.0"
-__date = "2025-11-13"
+__version = "2.0.0"
+__date = "2025-11-17"
+
+
 def __remove_ambiguous_pg(protein_table: pd.DataFrame) -> pd.DataFrame:
     protein_table["Filter:Is_Ambiguous_PG"] = protein_table.apply(
         lambda row: ";" in str(row["PG.ProteinGroups"]), axis=1
