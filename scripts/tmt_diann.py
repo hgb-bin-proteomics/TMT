@@ -46,6 +46,15 @@ __version = "1.1.0"
 __date = "2025-11-13"
 
 
+def __annotate_diann_protein_table(
+    protein_table: str,
+    psm_table: pd.DataFrame,
+    settings: Dict[str, Any],
+) -> pd.DataFrame:
+    # TODO
+    return psm_table
+
+
 # annotates the DIA-NN result with TMT quantities
 # currently based on the report parquet
 def __annotate_diann_result(
@@ -226,6 +235,15 @@ def main(argv=None) -> pd.DataFrame:
         type=str,
     )
     parser.add_argument(
+        "-p",
+        "--proteins",
+        dest="proteins",
+        required=False,
+        default=None,
+        help="Path/name of the DIA-NN protein result file in .parquet format.",
+        type=str,
+    )
+    parser.add_argument(
         "-r",
         "--resolution",
         dest="resolution",
@@ -284,6 +302,12 @@ def main(argv=None) -> pd.DataFrame:
         args.diann.split(".parquet")[0] + "_purity_tmt_quant_conditions.parquet",
         index=False,
     )
+    if args.proteins is not None:
+        proteins_df = __annotate_diann_protein_table(args.proteins, df, settings)
+        proteins_df.to_parquet(
+            args.proteins.split(".parquet")[0] + "_purity_tmt_quant_pg.parquet",
+            index=False,
+        )
     return df
 
 
