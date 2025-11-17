@@ -43,8 +43,10 @@ from tmt_chimerys import __convert
 from tmt_spectronaut import __read_spectra
 from tmt_spectronaut import __get_ms2_spectrum
 
-__version = "1.1.0"
-__date = "2025-11-13"
+__version = "2.0.0"
+__date = "2025-11-17"
+
+
 def __remove_ambiguous_pg(protein_table: pd.DataFrame) -> pd.DataFrame:
     protein_table["Filter:Is_Ambiguous_PG"] = protein_table.apply(
         lambda row: ";" in str(row["Protein.Group"]), axis=1
