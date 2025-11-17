@@ -49,6 +49,16 @@ from tmt_chimerys import __convert
 
 __version = "1.1.0"
 __date = "2025-11-13"
+def __remove_ambiguous_pg(protein_table: pd.DataFrame) -> pd.DataFrame:
+    protein_table["Filter:Is_Ambiguous_PG"] = protein_table.apply(
+        lambda row: ";" in str(row["PG.ProteinGroups"]), axis=1
+    )
+    filtered_protein_table = protein_table[~protein_table["Filter:Is_Ambiguous_PG"]]
+    if not isinstance(filtered_protein_table, pd.DataFrame):
+        raise RuntimeError("Filtering did not return a table, too strict?")
+    return filtered_protein_table
+
+
 def __annotate_spectronaut_protein_df(
     protein_table: pd.DataFrame,
     psm_table: pd.DataFrame,
@@ -620,6 +630,8 @@ def main(argv=None) -> pd.DataFrame:
     )
     if args.proteins is not None:
         proteins_df = __annotate_spectronaut_protein_table(args.proteins, df, settings)
+        if not __get_bool_from_value(settings["keep_pg"]):
+            proteins_df = __remove_ambiguous_pg(proteins_df)
         proteins_df.to_csv(
             args.proteins.split(".csv")[0] + "_purity_tmt_quant_pg.csv",
             sep=",",
