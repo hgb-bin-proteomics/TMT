@@ -49,6 +49,67 @@ from tmt_chimerys import __convert
 
 __version = "1.1.0"
 __date = "2025-11-13"
+def __annotate_spectronaut_protein_df(
+    protein_table: pd.DataFrame,
+    psm_table: pd.DataFrame,
+    min_reporter_res: float,
+    min_purity: float,
+    conditions: List[Dict[str, Any]],
+) -> pd.DataFrame:
+    has_resolution = "RESGUI_Resolution" in psm_table.columns.tolist()
+    psms_by_proteins = dict()
+    for i, psm in tqdm(
+        psm_table.iterrows(), total=psm_table.shape[0], desc="Filtering precursors..."
+    ):
+        pg = str(psm["PG.ProteinGroups"]).strip()
+        purity = float(psm["Co-Isolation Purity"])
+        # remove PSMs below purity threshold
+        if pd.isna(purity) or purity < min_purity:
+            continue
+        if pg in psms_by_proteins:
+            psms_by_proteins[pg].append(psm)
+        else:
+            psms_by_proteins[pg] = [psm]
+    channels = {key: [] for key in TMT.keys()}
+    for i, protein in tqdm(
+        protein_table.iterrows(),
+        total=protein_table.shape[0],
+        desc="Annotating protein abundances...",
+    ):
+        pg = str(protein["PG.ProteinGroups"]).strip()
+        psms_for_pg = list()
+        if pg in psms_by_proteins:
+            psms_for_pg = psms_by_proteins[pg]
+        tmt_quants = {key: 0.0 for key in TMT.keys()}
+        for psm in psms_for_pg:
+            if has_resolution:
+                for c in TMT.keys():
+                    resgui_key = "RESGUI_" + c.split("-")[1] + " Resolution"
+                    eligible_for_quant = True
+                    if pd.isna(float(psm[resgui_key])):
+                        eligible_for_quant = False
+                    if float(psm[resgui_key]) < min_reporter_res:
+                        eligible_for_quant = False
+                    for condition in conditions:
+                        if (
+                            c in condition["reporters"]
+                            and psm[f"Condition_SN_{condition['name']}"]
+                            < condition["sn"]
+                        ):
+                            eligible_for_quant = False
+                            break
+                    if not eligible_for_quant:
+                        tmt_quants[c] += 0.0
+                    else:
+                        tmt_quants[c] += psm[f"Annotated {c}"]
+            else:
+                for c in TMT.keys():
+                    tmt_quants[c] += psm[f"Annotated {c}"]
+        for k, v in tmt_quants.items():
+            channels[k].append(v)
+    for key in channels.keys():
+        protein_table[f"Annotated protein-level {key}"] = channels[key]
+    return protein_table
 
 
 def __annotate_spectronaut_protein_table(
@@ -56,8 +117,16 @@ def __annotate_spectronaut_protein_table(
     psm_table: pd.DataFrame,
     settings: Dict[str, Any],
 ) -> pd.DataFrame:
-    # TODO
-    return psm_table
+    protein_df = pd.read_csv(protein_table, low_memory=False)
+    min_reporter_res = float(settings["min_reporter_res"])
+    min_purity = float(settings["min_purity"])
+    return __annotate_spectronaut_protein_df(
+        protein_df,
+        psm_table,
+        min_reporter_res=min_reporter_res,
+        min_purity=min_purity,
+        conditions=settings["conditions"],
+    )
 
 
 # read mass spectra from an mzML file
