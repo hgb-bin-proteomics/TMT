@@ -192,7 +192,7 @@ def __get_sn_for_condition(row: pd.Series, reporters: List[str]) -> float:
     return total_signal / total_noise
 
 
-def __annotate_chimerys_result_conditions(
+def __annotate_result_conditions(
     psms: pd.DataFrame, conditions: List[Dict[str, Any]]
 ) -> pd.DataFrame:
     has_resolution = "RESGUI_Resolution" in psms.columns.tolist()
@@ -1168,7 +1168,7 @@ def main(argv=None) -> pd.DataFrame:
         sep="\t",
         index=False,
     )
-    df = __annotate_chimerys_result_conditions(df, settings["conditions"])
+    df = __annotate_result_conditions(df, settings["conditions"])
     df.to_csv(
         args.chimerys.split(".txt")[0] + "_purity_tmt_quant_conditions.txt",
         sep="\t",
