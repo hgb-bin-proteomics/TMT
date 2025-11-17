@@ -38,6 +38,7 @@ from tmt_chimerys import __get_consensusXML_map
 from tmt_chimerys import __get_resolution_gui_map
 from tmt_chimerys import __get_resolution_gui_values
 from tmt_chimerys import __get_tmt_intensities_resgui
+from tmt_chimerys import __annotate_result_conditions
 from tmt_chimerys import __subtract_noise
 from tmt_chimerys import __get_key
 from tmt_chimerys import __parse_scan_nr_from_id
@@ -521,6 +522,12 @@ def main(argv=None) -> pd.DataFrame:
     )
     df.to_csv(
         args.spectronaut.split(".csv")[0] + "_purity_tmt_quant.csv",
+        sep=",",
+        index=False,
+    )
+    df = __annotate_result_conditions(df, settings["conditions"])
+    df.to_csv(
+        args.spectronaut.split(".csv")[0] + "_purity_tmt_quant_conditions.csv",
         sep=",",
         index=False,
     )
