@@ -146,7 +146,7 @@ def __annotate_diann_result(
     df = pd.read_parquet(diann_filename)
     # subset to only precursors from ms file
     df = df[df["Run"] == spectrum_filename[:-5]]
-    if not isinstance(df, pd.DataFrame):
+    if not isinstance(df, pd.DataFrame) or df.shape[0] == 0:
         raise RuntimeError("Filtering for given MS file did not return a dataframe!")
     channels = {key: [] for key in TMT.keys()}
     resolution = {f"RESGUI_{key}": [] for key in RESOLUTION_GUI_COLS}
