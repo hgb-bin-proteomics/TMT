@@ -172,7 +172,7 @@ def __convert(filename: str) -> str:
 
 def __get_sn_for_condition(row: pd.Series, reporters: List[str]) -> float:
     total_signal = 0.0
-    total_noise = 0.0
+    total_noise = 0.0 + 1e-12  # added to avoid division by zero when there is no noise
     for reporter in reporters:
         reporter_signal = 0.0
         reporter_noise = 0.0
