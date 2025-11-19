@@ -365,7 +365,7 @@ def main(argv=None) -> pd.DataFrame:
     if not __get_bool_from_value(settings["keep_pg"]):
         df = __remove_ambiguous_pg(df)
     df.to_parquet(
-        args.proteins.split(".parquet")[0] + "_purity_tmt_quant.parquet",
+        args.diann.split(".parquet")[0] + "_purity_tmt_quant.parquet",
         index=False,
     )
     return df
