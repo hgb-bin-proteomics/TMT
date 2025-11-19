@@ -17,6 +17,7 @@
 # https://github.com/michabirklbauer/
 # micha.birklbauer@gmail.com
 
+import os
 import pandas as pd
 from tqdm import tqdm
 
@@ -145,7 +146,10 @@ def __annotate_diann_result(
     # settings should be given by __read_settings
     df = pd.read_parquet(diann_filename)
     # subset to only precursors from ms file
-    df = df[df["Run"] == spectrum_filename[:-5]]
+    _head, tail = os.path.split(spectrum_filename)
+    filter_spectrum_filename = tail[:-4] if tail[-4:].lower() == ".raw" else tail
+    filter_spectrum_filename = tail[:-5] if tail[-5:].lower() == ".mzml" else tail
+    df = df[df["Run"] == filter_spectrum_filename]
     if not isinstance(df, pd.DataFrame) or df.shape[0] == 0:
         raise RuntimeError("Filtering for given MS file did not return a dataframe!")
     channels = {key: [] for key in TMT.keys()}
