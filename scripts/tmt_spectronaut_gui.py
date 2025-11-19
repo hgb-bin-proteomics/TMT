@@ -50,8 +50,8 @@ from tmt_chimerys import __calculate_precursor_intensity_ms1
 from tmt_chimerys import __get_windows
 from tmt_chimerys import __convert
 
-__version = "2.0.0"
-__date = "2025-11-17"
+__version = "2.0.1"
+__date = "2025-11-19"
 
 
 def __remove_ambiguous_pg(protein_table: pd.DataFrame) -> pd.DataFrame:
@@ -64,20 +64,36 @@ def __remove_ambiguous_pg(protein_table: pd.DataFrame) -> pd.DataFrame:
     return filtered_protein_table
 
 
-def __annotate_spectronaut_protein_df(
-    protein_table: pd.DataFrame,
-    psm_table: pd.DataFrame,
-    min_reporter_res: float,
-    min_purity: float,
-    conditions: List[Dict[str, Any]],
+def __annotate_spectronaut_pgs(
+    precursor_table: pd.DataFrame,
+    settings: Dict[str, Any],
 ) -> pd.DataFrame:
-    has_resolution = "RESGUI_Resolution" in psm_table.columns.tolist()
+    q_value = float(settings["q_value"])
+    min_reporter_res = float(settings["min_reporter_res"])
+    min_purity = float(settings["min_purity"])
+    conditions = settings["conditions"]
+    has_resolution = "RESGUI_Resolution" in precursor_table.columns.tolist()
     psms_by_proteins = dict()
     for i, psm in tqdm(
-        psm_table.iterrows(), total=psm_table.shape[0], desc="Filtering precursors..."
+        precursor_table.iterrows(),
+        total=precursor_table.shape[0],
+        desc="Filtering precursors...",
     ):
         pg = str(psm["PG.ProteinGroups"]).strip()
         purity = float(psm["Co-Isolation Purity"])
+        eg_global_precursor_qvalue = float(psm["EG.GlobalPrecursorQvalue"])
+        pg_qvalue = float(psm["PG.Qvalue"])
+        eg_qvalue = float(psm["EG.Qvalue"])
+        pg_qvalue_runwise = float(psm["PG.QValue (Run-Wise)"])
+        # remove PSMs above q-value
+        if pd.isna(eg_global_precursor_qvalue) or eg_global_precursor_qvalue > q_value:
+            continue
+        if pd.isna(pg_qvalue) or pg_qvalue > q_value:
+            continue
+        if pd.isna(eg_qvalue) or eg_qvalue > q_value:
+            continue
+        if pd.isna(pg_qvalue_runwise) or pg_qvalue_runwise > q_value:
+            continue
         # remove PSMs below purity threshold
         if pd.isna(purity) or purity < min_purity:
             continue
@@ -87,8 +103,8 @@ def __annotate_spectronaut_protein_df(
             psms_by_proteins[pg] = [psm]
     channels = {key: [] for key in TMT.keys()}
     for i, protein in tqdm(
-        protein_table.iterrows(),
-        total=protein_table.shape[0],
+        precursor_table.iterrows(),
+        total=precursor_table.shape[0],
         desc="Annotating protein abundances...",
     ):
         pg = str(protein["PG.ProteinGroups"]).strip()
@@ -123,25 +139,8 @@ def __annotate_spectronaut_protein_df(
         for k, v in tmt_quants.items():
             channels[k].append(v)
     for key in channels.keys():
-        protein_table[f"Annotated protein-level {key}"] = channels[key]
-    return protein_table
-
-
-def __annotate_spectronaut_protein_table(
-    protein_table: str,
-    psm_table: pd.DataFrame,
-    settings: Dict[str, Any],
-) -> pd.DataFrame:
-    protein_df = pd.read_csv(protein_table, low_memory=False)
-    min_reporter_res = float(settings["min_reporter_res"])
-    min_purity = float(settings["min_purity"])
-    return __annotate_spectronaut_protein_df(
-        protein_df,
-        psm_table,
-        min_reporter_res=min_reporter_res,
-        min_purity=min_purity,
-        conditions=settings["conditions"],
-    )
+        precursor_table[f"Annotated protein-level {key}"] = channels[key]
+    return precursor_table
 
 
 # read mass spectra from an mzML file
@@ -398,6 +397,10 @@ def __annotate_spectronaut_result(
     # spectra should be given by __read_spectra
     # settings should be given by __read_settings
     df = pd.read_csv(spectronaut_filename, low_memory=False)
+    # subset to only precursors from ms file
+    df = df[df["R.FileName"] == spectrum_filename[:-5]]
+    if not isinstance(df, pd.DataFrame) or df.shape[0] == 0:
+        raise RuntimeError("Filtering for given MS file did not return a dataframe!")
     channels = {key: [] for key in TMT.keys()}
     resolution = {f"RESGUI_{key}": [] for key in RESOLUTION_GUI_COLS}
     purities = list()
@@ -584,16 +587,6 @@ def main(argv=None) -> pd.DataFrame:
     )
     opt = parser.add_argument_group("Optional", "Optional Arguments.")
     opt.add_argument(
-        "-p",
-        "--proteins",
-        dest="proteins",
-        required=False,
-        default=None,
-        help="Path/name of the Spectronaut protein result file in comma-separated .csv format.",
-        type=str,
-        widget="FileChooser",
-    )
-    opt.add_argument(
         "-r",
         "--resolution",
         dest="resolution",
@@ -648,26 +641,15 @@ def main(argv=None) -> pd.DataFrame:
         window_file=args.window_file,
         verbose=int(args.verbose),
     )
+    df = __annotate_result_conditions(df, settings["conditions"])
+    df = __annotate_spectronaut_pgs(df, settings)
+    if not __get_bool_from_value(settings["keep_pg"]):
+        df = __remove_ambiguous_pg(df)
     df.to_csv(
         args.spectronaut.split(".csv")[0] + "_purity_tmt_quant.csv",
         sep=",",
         index=False,
     )
-    df = __annotate_result_conditions(df, settings["conditions"])
-    df.to_csv(
-        args.spectronaut.split(".csv")[0] + "_purity_tmt_quant_conditions.csv",
-        sep=",",
-        index=False,
-    )
-    if args.proteins is not None:
-        proteins_df = __annotate_spectronaut_protein_table(args.proteins, df, settings)
-        if not __get_bool_from_value(settings["keep_pg"]):
-            proteins_df = __remove_ambiguous_pg(proteins_df)
-        proteins_df.to_csv(
-            args.proteins.split(".csv")[0] + "_purity_tmt_quant_pg.csv",
-            sep=",",
-            index=False,
-        )
     print("Script finished successfully!")
     return df
 
