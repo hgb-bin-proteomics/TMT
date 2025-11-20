@@ -25,12 +25,17 @@ from tmt_spectronaut import __read_spectra
 from tmt_chimerys import __get_consensusXML_df
 from tmt_chimerys import __get_consensusXML_map
 from tmt_diann import __annotate_diann_result
+from tmt_chimerys import __annotate_result_conditions
+from tmt_chimerys import __get_bool_from_value
+from tmt_diann import __annotate_diann_pgs
+from tmt_diann import __remove_ambiguous_pg
 
 CONFIG_FILE = "config.toml"
 RESOLUTION_FILE = "resolution.csv"
-USE_OPENMS = True
+WINDOW_FILE = None
+MAIN_REPORT = "report.parquet"
 # Verbose level where 0: ignore all warnings and errors, 1: raise warnings, and >= 2: raise errors
-VERBOSE = 2
+VERBOSE = 1
 
 
 def main():
@@ -53,23 +58,31 @@ def main():
         settings["window_size"] = float(w)
         print("Used settings:")
         print(settings)
+        if WINDOW_FILE is not None:
+            print(f"Using windows from given windows file: {WINDOW_FILE}")
         args_spectra = __convert(f"{f}.mzML")
         spectra = __read_spectra(args_spectra)
+        quantification_method = int(settings["quantification_method"])
         consensusXML_map = None
-        if USE_OPENMS:
+        if quantification_method != 1 and quantification_method != 3:
             consensusXML_df = __get_consensusXML_df(args_spectra)
             consensusXML_map = __get_consensusXML_map(consensusXML_df)
         df = __annotate_diann_result(
-            diann_filename=f"{f}_precursor.parquet",
+            diann_filename=MAIN_REPORT,
             spectrum_filename=args_spectra,
             spectra=spectra,
             settings=settings,
             consensusXML_map=consensusXML_map,
             resolution_gui_map=resolution_gui_map,
+            window_file=WINDOW_FILE,
             verbose=VERBOSE,
         )
+        df = __annotate_result_conditions(df, settings["conditions"])
+        df = __annotate_diann_pgs(df, settings)
+        if not __get_bool_from_value(settings["keep_pg"]):
+            df = __remove_ambiguous_pg(df)
         df.to_parquet(
-            f"{f}_precursor_purity_tmt_quant.parquet",
+            f"{f}_purity_tmt_quant.parquet",
             index=False,
         )
         # console log
