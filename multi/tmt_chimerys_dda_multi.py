@@ -25,10 +25,10 @@ from tmt_chimerys import __get_consensusXML_df
 from tmt_chimerys import __get_consensusXML_map
 from tmt_chimerys_dda import __annotate_chimerys_result
 from tmt_chimerys import __annotate_chimerys_protein_table
+from tmt_chimerys import __annotate_result_conditions
 
 CONFIG_FILE = "config.toml"
 RESOLUTION_FILE = "resolution.csv"
-USE_OPENMS = True
 
 
 def main():
@@ -53,8 +53,9 @@ def main():
         print(settings)
         args_spectra = __convert(f"{f}.mzML")
         spectra = __read_spectra_by_scannumber(args_spectra)
+        quantification_method = int(settings["quantification_method"])
         consensusXML_map = None
-        if USE_OPENMS:
+        if quantification_method != 1 and quantification_method != 3:
             consensusXML_df = __get_consensusXML_df(args_spectra)
             consensusXML_map = __get_consensusXML_map(consensusXML_df)
         df = __annotate_chimerys_result(
@@ -67,6 +68,12 @@ def main():
         )
         df.to_csv(
             f"{f}_PSMs_purity_tmt_quant.txt",
+            sep="\t",
+            index=False,
+        )
+        df = __annotate_result_conditions(df, settings["conditions"])
+        df.to_csv(
+            f"{f}_PSMs_purity_tmt_quant_conditions.txt",
             sep="\t",
             index=False,
         )
