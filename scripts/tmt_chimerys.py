@@ -34,8 +34,8 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "2.1.0"
-__date = "2025-11-13"
+__version = "2.1.1"
+__date = "2025-11-20"
 
 TMT_TOLERANCE = 0.0025
 TMT = {
@@ -178,13 +178,13 @@ def __get_sn_for_condition(row: pd.Series, reporters: List[str]) -> float:
         reporter_noise = 0.0
         label = reporter.split("-")[1].strip()
         if label == "134C":
-            if not pd.isna(row["RESGUI_134C Intesntiy"]):  # pyright: ignore[reportGeneralTypeIssues]
-                reporter_signal = float(row["RESGUI_134C Intesntiy"])
+            if not pd.isna(row[f"Annotated {reporter}"]):  # pyright: ignore[reportGeneralTypeIssues]
+                reporter_signal = float(row[f"Annotated {reporter}"])
             if not pd.isna(row["RESGUI_134C Noise"]):  # pyright: ignore[reportGeneralTypeIssues]
                 reporter_noise = float(row["RESGUI_134C Noise"])
         else:
-            if not pd.isna(row[f"RESGUI_{label} Intensity"]):  # pyright: ignore[reportGeneralTypeIssues]
-                reporter_signal = float(row[f"RESGUI_{label} Intensity"])
+            if not pd.isna(row[f"Annotated {reporter}"]):  # pyright: ignore[reportGeneralTypeIssues]
+                reporter_signal = float(row[f"Annotated {reporter}"])
             if not pd.isna(row[f"RESGUI_{label} Noise"]):  # pyright: ignore[reportGeneralTypeIssues]
                 reporter_noise = float(row[f"RESGUI_{label} Noise"])
         total_signal += reporter_signal
