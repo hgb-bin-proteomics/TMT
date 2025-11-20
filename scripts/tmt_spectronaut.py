@@ -15,6 +15,7 @@
 # https://github.com/michabirklbauer/
 # micha.birklbauer@gmail.com
 
+import os
 import argparse
 import warnings
 import pandas as pd
@@ -37,6 +38,9 @@ from tmt_chimerys import __get_consensusXML_df
 from tmt_chimerys import __get_consensusXML_map
 from tmt_chimerys import __get_resolution_gui_map
 from tmt_chimerys import __get_resolution_gui_values
+from tmt_chimerys import __get_tmt_intensities_resgui
+from tmt_chimerys import __annotate_result_conditions
+from tmt_chimerys import __subtract_noise
 from tmt_chimerys import __get_key
 from tmt_chimerys import __parse_scan_nr_from_id
 from tmt_chimerys import __check_mz_in_ms1
@@ -44,8 +48,97 @@ from tmt_chimerys import __calculate_precursor_intensity_ms1
 from tmt_chimerys import __get_windows
 from tmt_chimerys import __convert
 
-__version = "1.0.2"
-__date = "2025-09-18"
+__version = "2.0.1"
+__date = "2025-11-19"
+
+
+def __remove_ambiguous_pg(protein_table: pd.DataFrame) -> pd.DataFrame:
+    protein_table["Filter:Is_Ambiguous_PG"] = protein_table.apply(
+        lambda row: ";" in str(row["PG.ProteinGroups"]), axis=1
+    )
+    filtered_protein_table = protein_table[~protein_table["Filter:Is_Ambiguous_PG"]]
+    if not isinstance(filtered_protein_table, pd.DataFrame):
+        raise RuntimeError("Filtering did not return a table, too strict?")
+    return filtered_protein_table
+
+
+def __annotate_spectronaut_pgs(
+    precursor_table: pd.DataFrame,
+    settings: Dict[str, Any],
+) -> pd.DataFrame:
+    q_value = float(settings["q_value"])
+    min_reporter_res = float(settings["min_reporter_res"])
+    min_purity = float(settings["min_purity"])
+    conditions = settings["conditions"]
+    has_resolution = "RESGUI_Resolution" in precursor_table.columns.tolist()
+    psms_by_proteins = dict()
+    for i, psm in tqdm(
+        precursor_table.iterrows(),
+        total=precursor_table.shape[0],
+        desc="Filtering precursors...",
+    ):
+        pg = str(psm["PG.ProteinGroups"]).strip()
+        purity = float(psm["Co-Isolation Purity"])
+        eg_global_precursor_qvalue = float(psm["EG.GlobalPrecursorQvalue"])
+        pg_qvalue = float(psm["PG.Qvalue"])
+        eg_qvalue = float(psm["EG.Qvalue"])
+        pg_qvalue_runwise = float(psm["PG.QValue (Run-Wise)"])
+        # remove PSMs above q-value
+        if pd.isna(eg_global_precursor_qvalue) or eg_global_precursor_qvalue > q_value:
+            continue
+        if pd.isna(pg_qvalue) or pg_qvalue > q_value:
+            continue
+        if pd.isna(eg_qvalue) or eg_qvalue > q_value:
+            continue
+        if pd.isna(pg_qvalue_runwise) or pg_qvalue_runwise > q_value:
+            continue
+        # remove PSMs below purity threshold
+        if pd.isna(purity) or purity < min_purity:
+            continue
+        if pg in psms_by_proteins:
+            psms_by_proteins[pg].append(psm)
+        else:
+            psms_by_proteins[pg] = [psm]
+    channels = {key: [] for key in TMT.keys()}
+    for i, protein in tqdm(
+        precursor_table.iterrows(),
+        total=precursor_table.shape[0],
+        desc="Annotating protein abundances...",
+    ):
+        pg = str(protein["PG.ProteinGroups"]).strip()
+        psms_for_pg = list()
+        if pg in psms_by_proteins:
+            psms_for_pg = psms_by_proteins[pg]
+        tmt_quants = {key: 0.0 for key in TMT.keys()}
+        for psm in psms_for_pg:
+            if has_resolution:
+                for c in TMT.keys():
+                    resgui_key = "RESGUI_" + c.split("-")[1] + " Resolution"
+                    eligible_for_quant = True
+                    if pd.isna(float(psm[resgui_key])):
+                        eligible_for_quant = False
+                    if float(psm[resgui_key]) < min_reporter_res:
+                        eligible_for_quant = False
+                    for condition in conditions:
+                        if (
+                            c in condition["reporters"]
+                            and psm[f"Condition_SN_{condition['name']}"]
+                            < condition["sn"]
+                        ):
+                            eligible_for_quant = False
+                            break
+                    if not eligible_for_quant:
+                        tmt_quants[c] += 0.0
+                    else:
+                        tmt_quants[c] += psm[f"Annotated {c}"]
+            else:
+                for c in TMT.keys():
+                    tmt_quants[c] += psm[f"Annotated {c}"]
+        for k, v in tmt_quants.items():
+            channels[k].append(v)
+    for key in channels.keys():
+        precursor_table[f"Annotated protein-level {key}"] = channels[key]
+    return precursor_table
 
 
 # read mass spectra from an mzML file
@@ -276,6 +369,7 @@ def __get_ms2_spectrum(
     purity = __calculate_precursor_intensity_ms1(
         precursor_mz,
         ms1,
+        spectrum,
         mz_tol,
         do_deisotope,
         isotope_tol,
@@ -295,17 +389,32 @@ def __annotate_spectronaut_result(
     settings: Dict[str, Any],
     consensusXML_map: Optional[Dict[int, Dict[int, pd.Series]]] = None,
     resolution_gui_map: Optional[Dict[str, Dict[int, pd.Series]]] = None,
+    window_file: Optional[str] = None,
     verbose: int = 2,
 ) -> pd.DataFrame:
     # spectra should be given by __read_spectra
     # settings should be given by __read_settings
     df = pd.read_csv(spectronaut_filename, low_memory=False)
+    # subset to only precursors from ms file
+    _head, tail = os.path.split(spectrum_filename)
+    filter_spectrum_filename = tail[:-4] if tail[-4:].lower() == ".raw" else tail
+    filter_spectrum_filename = tail[:-5] if tail[-5:].lower() == ".mzml" else tail
+    df = df[df["R.FileName"] == filter_spectrum_filename]
+    if not isinstance(df, pd.DataFrame) or df.shape[0] == 0:
+        raise RuntimeError("Filtering for given MS file did not return a dataframe!")
     channels = {key: [] for key in TMT.keys()}
     resolution = {f"RESGUI_{key}": [] for key in RESOLUTION_GUI_COLS}
     purities = list()
     parsed_scannr = list()
     nr_of_missing_ms1 = 0
     nr_of_impure_ids = 0
+    quantification_method = int(settings["quantification_method"])
+    if quantification_method == 1:
+        print("Using native quantification!")
+    elif quantification_method == 3:
+        print("Using Resolution GUI quantification!")
+    else:
+        print("Using OpenMS quantification!")
     for i, row in tqdm(
         df.iterrows(), total=df.shape[0], desc="Annotating Spectronaut result..."
     ):
@@ -330,11 +439,15 @@ def __annotate_spectronaut_result(
             float(settings["window_start"]),
             float(settings["window_end"]),
             float(settings["window_size"]),
+            float(settings["window_overlap"]),
+            window_file,
         )
         # isotope parameters
         do_deisotope = __get_bool_from_value(settings["deisotope"])
         isotope_tolerance = float(settings["isotope_tolerance"])
         max_charge = int(settings["max_charge"])
+        # normalization
+        subtract_noise = __get_bool_from_value(settings["subtract_noise"])
         # get corresponding MS2 spectrum for identification
         spectrum_purity = __get_ms2_spectrum(
             prec_mz,
@@ -355,10 +468,33 @@ def __annotate_spectronaut_result(
         purity = spectrum_purity["purity"]
         # if a spectrum is found -> purity and quantify
         if spectrum is not None:
-            if consensusXML_map is None:
+            if quantification_method == 1:
                 tmt_quants = __get_tmt_intensities(spectrum)
+            elif quantification_method == 3:
+                if resolution_gui_map is None:
+                    raise ValueError(
+                        "Quantification method Resolution GUI was selected but no resolution file was found!"
+                    )
+                else:
+                    tmt_quants = __get_tmt_intensities_resgui(
+                        spectrum, resolution_gui_map, spectrum_filename
+                    )
             else:
-                tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
+                if consensusXML_map is None:
+                    raise ValueError(
+                        "Quantification method OpenMS was selected but no consensusXML was found!"
+                    )
+                else:
+                    tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
+            if subtract_noise:
+                if resolution_gui_map is None:
+                    raise ValueError(
+                        "Subtract noise was set to true but no resolution file was found!"
+                    )
+                else:
+                    tmt_quants = __subtract_noise(
+                        tmt_quants, spectrum, resolution_gui_map, spectrum_filename
+                    )
             for key in channels.keys():
                 channels[key].append(tmt_quants[key])
             if resolution_gui_map is None:
@@ -426,7 +562,7 @@ def main(argv=None) -> pd.DataFrame:
         "-c",
         "--config",
         dest="config",
-        default=None,
+        required=True,
         help="Path/name of the config file.",
         type=str,
     )
@@ -442,18 +578,10 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument(
         "-w",
         "--window",
-        dest="window",
+        dest="window_file",
         default=None,
-        help="Window size, overrides config file!",
-        type=float,
-    )
-    parser.add_argument(
-        "-n",
-        "--native",
-        dest="native",
-        default=False,
-        action="store_true",
-        help="Use native quantification instead of OpenMS quantification which is used by default.",
+        help="Window file, overrides config file!",
+        type=str,
     )
     parser.add_argument(
         "-v",
@@ -466,13 +594,14 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
-    if args.window is not None:
-        settings["window_size"] = float(args.window)
     print(settings)
+    if args.window_file is not None:
+        print(f"Using windows from given windows file: {args.window_file}")
     args_spectra = __convert(args.spectra)
     spectra = __read_spectra(args_spectra)
+    quantification_method = int(settings["quantification_method"])
     consensusXML_map = None
-    if not args.native:
+    if quantification_method != 1 and quantification_method != 3:
         consensusXML_df = __get_consensusXML_df(args_spectra)
         consensusXML_map = __get_consensusXML_map(consensusXML_df)
     resolution_gui_map = None
@@ -485,8 +614,13 @@ def main(argv=None) -> pd.DataFrame:
         settings=settings,
         consensusXML_map=consensusXML_map,
         resolution_gui_map=resolution_gui_map,
+        window_file=args.window_file,
         verbose=int(args.verbose),
     )
+    df = __annotate_result_conditions(df, settings["conditions"])
+    df = __annotate_spectronaut_pgs(df, settings)
+    if not __get_bool_from_value(settings["keep_pg"]):
+        df = __remove_ambiguous_pg(df)
     df.to_csv(
         args.spectronaut.split(".csv")[0] + "_purity_tmt_quant.csv",
         sep=",",

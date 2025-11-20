@@ -34,8 +34,8 @@ from typing import Tuple
 from typing import Any
 
 
-__version = "1.0.6"
-__date = "2025-09-18"
+__version = "2.1.0"
+__date = "2025-11-13"
 
 TMT_TOLERANCE = 0.0025
 TMT = {
@@ -170,6 +170,41 @@ def __convert(filename: str) -> str:
     return new_filename
 
 
+def __get_sn_for_condition(row: pd.Series, reporters: List[str]) -> float:
+    total_signal = 0.0
+    total_noise = 0.0 + 1e-12  # added to avoid division by zero when there is no noise
+    for reporter in reporters:
+        reporter_signal = 0.0
+        reporter_noise = 0.0
+        label = reporter.split("-")[1].strip()
+        if label == "134C":
+            if not pd.isna(row["RESGUI_134C Intesntiy"]):  # pyright: ignore[reportGeneralTypeIssues]
+                reporter_signal = float(row["RESGUI_134C Intesntiy"])
+            if not pd.isna(row["RESGUI_134C Noise"]):  # pyright: ignore[reportGeneralTypeIssues]
+                reporter_noise = float(row["RESGUI_134C Noise"])
+        else:
+            if not pd.isna(row[f"RESGUI_{label} Intensity"]):  # pyright: ignore[reportGeneralTypeIssues]
+                reporter_signal = float(row[f"RESGUI_{label} Intensity"])
+            if not pd.isna(row[f"RESGUI_{label} Noise"]):  # pyright: ignore[reportGeneralTypeIssues]
+                reporter_noise = float(row[f"RESGUI_{label} Noise"])
+        total_signal += reporter_signal
+        total_noise += reporter_noise
+    return total_signal / total_noise
+
+
+def __annotate_result_conditions(
+    psms: pd.DataFrame, conditions: List[Dict[str, Any]]
+) -> pd.DataFrame:
+    has_resolution = "RESGUI_Resolution" in psms.columns.tolist()
+    if not has_resolution:
+        return psms
+    for condition in conditions:
+        psms[f"Condition_SN_{condition['name']}"] = psms.apply(
+            lambda row: __get_sn_for_condition(row, condition["reporters"]), axis=1
+        )
+    return psms
+
+
 def __annotate_chimerys_protein_df(
     protein_table: pd.DataFrame,
     psm_table: pd.DataFrame,
@@ -177,6 +212,7 @@ def __annotate_chimerys_protein_df(
     min_avg_reporter_sn: float,
     min_reporter_res: float,
     min_purity: float,
+    conditions: List[Dict[str, Any]],
 ) -> pd.DataFrame:
     has_resolution = "RESGUI_Resolution" in psm_table.columns.tolist()
     psms_by_proteins = dict()
@@ -233,10 +269,20 @@ def __annotate_chimerys_protein_df(
             if has_resolution:
                 for c in TMT.keys():
                     resgui_key = "RESGUI_" + c.split("-")[1] + " Resolution"
-                    if (
-                        pd.isna(float(psm[resgui_key]))
-                        or float(psm[resgui_key]) < min_reporter_res
-                    ):
+                    eligible_for_quant = True
+                    if pd.isna(float(psm[resgui_key])):
+                        eligible_for_quant = False
+                    if float(psm[resgui_key]) < min_reporter_res:
+                        eligible_for_quant = False
+                    for condition in conditions:
+                        if (
+                            c in condition["reporters"]
+                            and psm[f"Condition_SN_{condition['name']}"]
+                            < condition["sn"]
+                        ):
+                            eligible_for_quant = False
+                            break
+                    if not eligible_for_quant:
                         tmt_quants[c] += 0.0
                     else:
                         tmt_quants[c] += psm[f"Annotated {c}"]
@@ -255,7 +301,7 @@ def __annotate_chimerys_protein_table(
     psm_table: pd.DataFrame,
     settings: Dict[str, Any],
 ) -> pd.DataFrame:
-    protein_df = pd.read_csv(protein_table, sep="\t")
+    protein_df = pd.read_csv(protein_table, sep="\t", low_memory=False)
     min_chimerys_coefficient = float(settings["min_chimerys_coefficient"])
     min_avg_reporter_sn = float(settings["min_avg_reporter_sn"])
     min_reporter_res = float(settings["min_reporter_res"])
@@ -267,6 +313,7 @@ def __annotate_chimerys_protein_table(
         min_avg_reporter_sn=min_avg_reporter_sn,
         min_reporter_res=min_reporter_res,
         min_purity=min_purity,
+        conditions=settings["conditions"],
     )
 
 
@@ -293,6 +340,30 @@ def __get_key(mass: float) -> int:
     return int(round(mass * 10000))
 
 
+def __check_valid_reporter(reporter: str) -> bool:
+    if reporter not in TMT:
+        raise ValueError(f"Found invalid reporter label {reporter} in CONDITIONS!")
+    return True
+
+
+def __get_conditions(toml_conditions: Dict[str, Any]) -> List[Dict[str, Any]]:
+    conditions = list()
+    for cond in toml_conditions["sn_thresholds"]:
+        if cond not in toml_conditions:
+            raise KeyError(f"Did not find condition {cond} in CONDITIONS!")
+        condition = {
+            "name": cond,
+            "reporters": [
+                reporter
+                for reporter in toml_conditions[cond]
+                if __check_valid_reporter(reporter)
+            ],
+            "sn": float(toml_conditions["sn_thresholds"][cond]),
+        }
+        conditions.append(condition)
+    return conditions
+
+
 def __read_settings(toml: str) -> Dict[str, Any]:
     parsed_toml = None
     with open(toml, "rb") as f:
@@ -304,6 +375,7 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "window_size": parsed_toml["METHOD"]["window_size"],
         "window_start": parsed_toml["METHOD"]["window_start"],
         "window_end": parsed_toml["METHOD"]["window_end"],
+        "window_overlap": parsed_toml["METHOD"]["window_overlap"],
         "mz_tolerance": parsed_toml["MATCHING"]["mz_tolerance"],
         "rt_tolerance": parsed_toml["MATCHING"]["rt_tolerance"],
         "rt_window": parsed_toml["MATCHING"]["ms1_rt_window"],
@@ -312,10 +384,15 @@ def __read_settings(toml: str) -> Dict[str, Any]:
         "deisotope": parsed_toml["ISOTOPES"]["consider_precursor_isotopes"],
         "isotope_tolerance": parsed_toml["ISOTOPES"]["isotope_tolerance"],
         "max_charge": parsed_toml["ISOTOPES"]["max_charge"],
+        "subtract_noise": parsed_toml["QUANTIFICATION"]["subtract_noise"],
+        "quantification_method": parsed_toml["QUANTIFICATION"]["quantification_method"],
+        "q_value": parsed_toml["PROTEIN"]["q_value"],
         "min_chimerys_coefficient": parsed_toml["PROTEIN"]["min_chimerys_coefficient"],
         "min_avg_reporter_sn": parsed_toml["PROTEIN"]["min_avg_reporter_sn"],
         "min_reporter_res": parsed_toml["PROTEIN"]["min_reporter_res"],
         "min_purity": parsed_toml["PROTEIN"]["min_purity"],
+        "keep_pg": parsed_toml["PROTEIN"]["keep_ambiguous_protein_groups"],
+        "conditions": __get_conditions(parsed_toml["CONDITIONS"]),
     }
 
 
@@ -456,6 +533,42 @@ def __get_resolution_gui_values(
     return data
 
 
+def __get_tmt_intensities_resgui(
+    spectrum: Dict[str, Any],
+    resolution_gui_map: Dict[str, Dict[int, pd.Series]],
+    spectrum_filename: str,
+) -> Dict[str, float]:
+    resolution_gui_values = __get_resolution_gui_values(
+        spectrum, resolution_gui_map, spectrum_filename
+    )
+    tmt_quants = {key: 0.0 for key in TMT.keys()}
+    for reporter_ion_name in TMT.keys():
+        channel = reporter_ion_name.split("-")[1].strip()
+        descriptor = "Intesntiy" if channel == "134C" else "Intensity"
+        resgui_col = f"RESGUI_{channel} {descriptor}"
+        tmt_quants[reporter_ion_name] += resolution_gui_values[resgui_col]
+    return tmt_quants
+
+
+def __subtract_noise(
+    tmt_quants: Dict[str, float],
+    spectrum: Dict[str, Any],
+    resolution_gui_map: Dict[str, Dict[int, pd.Series]],
+    spectrum_filename: str,
+) -> Dict[str, float]:
+    resolution_gui_values = __get_resolution_gui_values(
+        spectrum, resolution_gui_map, spectrum_filename
+    )
+    new_tmt_quants = dict()
+    for reporter_ion_name in TMT.keys():
+        channel = reporter_ion_name.split("-")[1].strip()
+        resgui_col = f"RESGUI_{channel} Noise"
+        new_tmt_quants[reporter_ion_name] = (
+            tmt_quants[reporter_ion_name] - resolution_gui_values[resgui_col]
+        )
+    return new_tmt_quants
+
+
 def __parse_scan_nr_from_id(id: str) -> int:
     return int(id.split("scan=")[1].split()[0])
 
@@ -569,69 +682,17 @@ def __check_mz_in_ms1(
     return False
 
 
-# calculates the purity for a given precursor
-def __calculate_precursor_intensity_ms1(
-    precursor_mz: float,
+def __calculate_purity(
     spectrum: Dict[str, Any],  # MS1 spectrum
-    mz_tol: float,
-    do_deisotope: bool,
-    isotope_tol: float,
+    matching_window: Tuple[float, float],
+    precursor: float,
+    precursor_index: int,
+    precursor_intensity: float,
     max_charge: int,
     noise_threshold: float,
-    windows: List[Tuple[float, float]],
-) -> float | None:
-    # parameter windows should define all DIA windows including their start and
-    # end points (in m/z)
-    precursor = None
-    precursor_index = None
-    precursor_intensity = None
-    # first look for the precursor in the MS1 spectrum
-    for i in range(len(spectrum["mz_array"])):
-        if __within_tolerance(spectrum["mz_array"][i], precursor_mz, mz_tol):
-            # if no precursor yet found, set precursor
-            if precursor is None:
-                precursor = spectrum["mz_array"][i]
-                precursor_index = i
-                precursor_intensity = spectrum["intensity_array"][i]
-            # else we need to deal with the fact that there is multiple potential
-            # precursors
-            else:
-                # todo clarify behaviour
-                if STRATEGY == 1:
-                    # use precursor with highest intensity
-                    if spectrum["intensity_array"][i] > precursor_intensity:
-                        precursor = spectrum["mz_array"][i]
-                        precursor_index = i
-                        precursor_intensity = spectrum["intensity_array"][i]
-                elif STRATEGY == 2:
-                    # do not use identification
-                    return None
-                elif STRATEGY == 3:
-                    # use closest precursor
-                    raise NotImplementedError()
-                else:
-                    raise RuntimeError(
-                        f"Found ambiguous precursors in MS1 spectrum for precursor m/z {precursor_mz} using MS1 spectrum at retention time {spectrum['rt']}."
-                    )
-    # if no precursor is found an error is raised
-    if precursor is None or precursor_index is None or precursor_intensity is None:
-        warnings.warn(
-            RuntimeWarning(
-                f"Could not find precursor in MS1 spectrum with scan number {spectrum['scan_nr']}."
-            )
-        )
-        return None
-    # find the corresponding m/z window that the precursor is in
-    matching_window = None
-    for window in windows:
-        if precursor > window[0] and precursor <= window[1]:
-            matching_window = window
-            break
-    # if no matching window is found an error is raised
-    if matching_window is None:
-        raise RuntimeError(
-            f"Could not find matching window for precursor m/z {precursor_mz}!"
-        )
+    do_deisotope: bool,
+    isotope_tol: float,
+) -> float:
     # get highest intensity peak in window
     most_intense_peak = 0.0
     peaks_in_window_mz = list()
@@ -710,6 +771,104 @@ def __calculate_precursor_intensity_ms1(
     return precursor_intensity / total_intensity_in_window
 
 
+def __get_optimal_window(
+    windows: List[Tuple[float, float]], spectrum: Dict[str, Any]
+) -> List[Tuple[float, float]]:
+    deviations = list()
+    for window in windows:
+        center = window[0] + (window[1] - window[0]) / 2.0
+        deviation = abs(center - spectrum["precursor"])
+        deviations.append(deviation)
+    return [windows[deviations.index(min(deviations))]]
+
+
+# calculates the purity for a given precursor
+def __calculate_precursor_intensity_ms1(
+    precursor_mz: float,
+    spectrum: Dict[str, Any],  # MS1 spectrum
+    spectrum_ms2: Dict[str, Any],  # MS2 spectrum
+    mz_tol: float,
+    do_deisotope: bool,
+    isotope_tol: float,
+    max_charge: int,
+    noise_threshold: float,
+    windows: List[Tuple[float, float]],
+) -> float | None:
+    # parameter windows should define all DIA windows including their start and
+    # end points (in m/z)
+    precursor = None
+    precursor_index = None
+    precursor_intensity = None
+    # first look for the precursor in the MS1 spectrum
+    for i in range(len(spectrum["mz_array"])):
+        if __within_tolerance(spectrum["mz_array"][i], precursor_mz, mz_tol):
+            # if no precursor yet found, set precursor
+            if precursor is None:
+                precursor = spectrum["mz_array"][i]
+                precursor_index = i
+                precursor_intensity = spectrum["intensity_array"][i]
+            # else we need to deal with the fact that there is multiple potential
+            # precursors
+            else:
+                # todo clarify behaviour
+                if STRATEGY == 1:
+                    # use precursor with highest intensity
+                    if spectrum["intensity_array"][i] > precursor_intensity:
+                        precursor = spectrum["mz_array"][i]
+                        precursor_index = i
+                        precursor_intensity = spectrum["intensity_array"][i]
+                elif STRATEGY == 2:
+                    # do not use identification
+                    return None
+                elif STRATEGY == 3:
+                    # use closest precursor
+                    raise NotImplementedError()
+                else:
+                    raise RuntimeError(
+                        f"Found ambiguous precursors in MS1 spectrum for precursor m/z {precursor_mz} using MS1 spectrum at retention time {spectrum['rt']}."
+                    )
+    # if no precursor is found an error is raised
+    if precursor is None or precursor_index is None or precursor_intensity is None:
+        warnings.warn(
+            RuntimeWarning(
+                f"Could not find precursor in MS1 spectrum with scan number {spectrum['scan_nr']}."
+            )
+        )
+        return None
+    # find the corresponding m/z window(s) that the precursor is in
+    matching_windows = list()
+    for window in windows:
+        if precursor > window[0] and precursor <= window[1]:
+            matching_windows.append(window)
+    # if no matching window is found an error is raised
+    if len(matching_windows) == 0:
+        raise RuntimeError(
+            f"Could not find matching window for precursor m/z {precursor_mz}!"
+        )
+    # select optimal window?
+    select_optimal_window = True
+    if len(matching_windows) > 1 and select_optimal_window:
+        matching_windows = __get_optimal_window(matching_windows, spectrum_ms2)
+    # if there are multiple matching windows, we calculate the purity of every window
+    # and return the minimum purity
+    purities = list()
+    for matching_window in matching_windows:
+        purities.append(
+            __calculate_purity(
+                spectrum,
+                matching_window,
+                precursor,
+                precursor_index,
+                precursor_intensity,
+                max_charge,
+                noise_threshold,
+                do_deisotope,
+                isotope_tol,
+            )
+        )
+    return min(purities)
+
+
 def __get_ms2_spectrum_by_scannumber(
     scan_nr: int,
     precursor_mz: float,
@@ -753,6 +912,7 @@ def __get_ms2_spectrum_by_scannumber(
     purity = __calculate_precursor_intensity_ms1(
         precursor_mz,
         ms1,
+        spectrum,
         mz_tol,
         do_deisotope,
         isotope_tol,
@@ -766,17 +926,28 @@ def __get_ms2_spectrum_by_scannumber(
 # given window start and end points (in m/z) and a window size, calculate all
 # m/z windows
 def __get_windows(
-    window_start: float, window_end: float, window_size: float
+    window_start: float,
+    window_end: float,
+    window_size: float,
+    window_overlap: float,
+    window_file: Optional[str],
 ) -> List[Tuple[float, float]]:
     windows = list()
-    current_window_start = window_start
-    while current_window_start < window_end:
-        current_window_end = current_window_start + window_size
-        if current_window_end > window_end:
-            windows.append((current_window_start, window_end))
-            break
-        windows.append((current_window_start, current_window_end))
-        current_window_start += window_size
+    if window_file is None:
+        current_window_start = window_start
+        while current_window_start < window_end:
+            current_window_end = current_window_start + window_size
+            if current_window_end > window_end:
+                windows.append((current_window_start, window_end))
+                break
+            windows.append((current_window_start, current_window_end))
+            current_window_start = current_window_start + window_size - window_overlap
+    else:
+        df = pd.read_csv(window_file)
+        for i, row in df.iterrows():
+            w1 = str(row["m/z range"]).split("-")[0]
+            w2 = str(row["m/z range"]).split("-")[1]
+            windows.append((float(w1), float(w2)))
     return windows
 
 
@@ -789,6 +960,7 @@ def __annotate_chimerys_result(
     settings: Dict[str, Any],
     consensusXML_map: Optional[Dict[int, Dict[int, pd.Series]]] = None,
     resolution_gui_map: Optional[Dict[str, Dict[int, pd.Series]]] = None,
+    window_file: Optional[str] = None,
 ) -> pd.DataFrame:
     # spectra should be given by __read_spectra_by_scannumber
     # settings should be given by __read_settings
@@ -799,6 +971,13 @@ def __annotate_chimerys_result(
     parsed_scannr = list()
     nr_of_missing_ms1 = 0
     nr_of_impure_ids = 0
+    quantification_method = int(settings["quantification_method"])
+    if quantification_method == 1:
+        print("Using native quantification!")
+    elif quantification_method == 3:
+        print("Using Resolution GUI quantification!")
+    else:
+        print("Using OpenMS quantification!")
     for i, row in tqdm(
         df.iterrows(), total=df.shape[0], desc="Annotating Chimerys result..."
     ):
@@ -819,11 +998,15 @@ def __annotate_chimerys_result(
             float(settings["window_start"]),
             float(settings["window_end"]),
             float(settings["window_size"]),
+            float(settings["window_overlap"]),
+            window_file,
         )
         # isotope parameters
         do_deisotope = __get_bool_from_value(settings["deisotope"])
         isotope_tolerance = float(settings["isotope_tolerance"])
         max_charge = int(settings["max_charge"])
+        # normalization
+        subtract_noise = __get_bool_from_value(settings["subtract_noise"])
         # get corresponding MS2 spectrum for identification
         spectrum_purity = __get_ms2_spectrum_by_scannumber(
             scan_nr,
@@ -839,10 +1022,33 @@ def __annotate_chimerys_result(
         )
         spectrum = spectrum_purity["spectrum"]
         purity = spectrum_purity["purity"]
-        if consensusXML_map is None:
+        if quantification_method == 1:
             tmt_quants = __get_tmt_intensities(spectrum)
+        elif quantification_method == 3:
+            if resolution_gui_map is None:
+                raise ValueError(
+                    "Quantification method Resolution GUI was selected but no resolution file was found!"
+                )
+            else:
+                tmt_quants = __get_tmt_intensities_resgui(
+                    spectrum, resolution_gui_map, spectrum_filename
+                )
         else:
-            tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
+            if consensusXML_map is None:
+                raise ValueError(
+                    "Quantification method OpenMS was selected but no consensusXML was found!"
+                )
+            else:
+                tmt_quants = __get_tmt_intensities_oms(spectrum, consensusXML_map)
+        if subtract_noise:
+            if resolution_gui_map is None:
+                raise ValueError(
+                    "Subtract noise was set to true but no resolution file was found!"
+                )
+            else:
+                tmt_quants = __subtract_noise(
+                    tmt_quants, spectrum, resolution_gui_map, spectrum_filename
+                )
         for key in channels.keys():
             channels[key].append(tmt_quants[key])
         if resolution_gui_map is None:
@@ -927,29 +1133,22 @@ def main(argv=None) -> pd.DataFrame:
     parser.add_argument(
         "-w",
         "--window",
-        dest="window",
+        dest="window_file",
         default=None,
-        help="Window size, overrides config file!",
-        type=float,
-    )
-    parser.add_argument(
-        "-n",
-        "--native",
-        dest="native",
-        default=False,
-        action="store_true",
-        help="Use native quantification instead of OpenMS quantification which is used by default.",
+        help="Window file, overrides config file!",
+        type=str,
     )
     parser.add_argument("--version", action="version", version=__version)
     args = parser.parse_args(argv)
     settings = __read_settings(args.config)
-    if args.window is not None:
-        settings["window_size"] = float(args.window)
     print(settings)
+    if args.window_file is not None:
+        print(f"Using windows from given windows file: {args.window_file}")
     args_spectra = __convert(args.spectra)
     spectra = __read_spectra_by_scannumber(args_spectra)
+    quantification_method = int(settings["quantification_method"])
     consensusXML_map = None
-    if not args.native:
+    if quantification_method != 1 and quantification_method != 3:
         consensusXML_df = __get_consensusXML_df(args_spectra)
         consensusXML_map = __get_consensusXML_map(consensusXML_df)
     resolution_gui_map = None
@@ -962,9 +1161,16 @@ def main(argv=None) -> pd.DataFrame:
         settings=settings,
         consensusXML_map=consensusXML_map,
         resolution_gui_map=resolution_gui_map,
+        window_file=args.window_file,
     )
     df.to_csv(
         args.chimerys.split(".txt")[0] + "_purity_tmt_quant.txt",
+        sep="\t",
+        index=False,
+    )
+    df = __annotate_result_conditions(df, settings["conditions"])
+    df.to_csv(
+        args.chimerys.split(".txt")[0] + "_purity_tmt_quant_conditions.txt",
         sep="\t",
         index=False,
     )
