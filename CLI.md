@@ -132,7 +132,7 @@ You can find all scripts in the `/scripts` folder.
 
 ## Spectronaut
 
-- Export matched precursors from Spectronaut in comma-separated `.csv` format.
+- Export matched precursors/the main report from Spectronaut in comma-separated `.csv` format.
 - Set you desired parameters in `config.toml`.
 - The scripts support both `.raw` files and `.mzML` files as input, `.raw` files will be automatically
   converted to `.mzML` when the scripts are run.
@@ -150,7 +150,7 @@ You can find all scripts in the `/scripts` folder.
     ```
   - Run the script with:
     ```bash
-    uv run tmt_spectronaut.py -s SPECTRA.mzML -i precursors.csv -c config.toml
+    uv run tmt_spectronaut.py -s SPECTRA.mzML -i report.csv -c config.toml
     ```
   - To display all possible parameters run:
     ```bash
@@ -168,7 +168,7 @@ You can find all scripts in the `/scripts` folder.
     ```
   - Run the script with:
     ```bash
-    python tmt_spectronaut.py -s SPECTRA.mzML -i precursors.csv -c config.toml
+    python tmt_spectronaut.py -s SPECTRA.mzML -i report.csv -c config.toml
     ```
   - To display all possible parameters run:
     ```bash
