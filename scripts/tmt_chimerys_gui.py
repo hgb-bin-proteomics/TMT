@@ -845,6 +845,12 @@ def __calculate_precursor_intensity_ms1(
             matching_windows.append(window)
     # if no matching window is found an error is raised
     if len(matching_windows) == 0:
+        warnings.warn(
+            RuntimeWarning(
+                f"Could not find matching window for precursor m/z {precursor_mz}!"
+            )
+        )
+        return None
         raise RuntimeError(
             f"Could not find matching window for precursor m/z {precursor_mz}!"
         )
