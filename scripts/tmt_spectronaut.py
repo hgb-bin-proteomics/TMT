@@ -48,8 +48,10 @@ from tmt_chimerys import __calculate_precursor_intensity_ms1
 from tmt_chimerys import __get_windows
 from tmt_chimerys import __convert
 
-__version = "2.0.1"
-__date = "2025-11-19"
+SPECTRONAUT_SEP = ";"
+
+__version = "2.0.2"
+__date = "2025-11-25"
 
 
 def __remove_ambiguous_pg(protein_table: pd.DataFrame) -> pd.DataFrame:
@@ -394,7 +396,7 @@ def __annotate_spectronaut_result(
 ) -> pd.DataFrame:
     # spectra should be given by __read_spectra
     # settings should be given by __read_settings
-    df = pd.read_csv(spectronaut_filename, low_memory=False)
+    df = pd.read_csv(spectronaut_filename, sep=SPECTRONAUT_SEP, low_memory=False)
     # subset to only precursors from ms file
     _head, tail = os.path.split(spectrum_filename)
     filter_spectrum_filename = tail[:-4] if tail[-4:].lower() == ".raw" else tail
