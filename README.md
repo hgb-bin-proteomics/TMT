@@ -122,6 +122,10 @@ sn_thresholds = { all = 0.0, cond1 = 10.0, cond2 = 10.0 }
 > You might also want to adapt the isotope correction factors for your TMT lot, you can do that in the `tmt18plex_default.ini` file.
 > Please refer to the documentation site of OpenMS [here](https://openms.de/documentation/html/TOPP_IsobaricAnalyzer.html).
 
+## TMT Resolution GUI Tool
+
+You might also want to use the output of the Resolution GUI tool developed by Dina L. Bai, Tian Zhang _et al._ [\[1\]](https://doi.org/10.1038/s41467-025-60022-x) as additional input for better quality control. Please refer to this repository for instructions: [https://github.com/hgb-bin-proteomics/TMT_Resolution_GUI](https://github.com/hgb-bin-proteomics/TMT_Resolution_GUI).
+
 ## Contact
 
 In case of questions please contact:
