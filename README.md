@@ -78,6 +78,7 @@ noise_threshold = 0.1
 
 [QUANTIFICATION]
 # subtract the reporter noise from the reporter signal?
+# if true, filtering by S/N should be turned off or thresholds set to 0.0
 subtract_noise = true
 # quantification method to use
 # 1 = native
