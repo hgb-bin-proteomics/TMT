@@ -24,6 +24,7 @@ You can find all scripts in the `/scripts` folder.
     ThermoRawFileParser.exe -i RAW_FILE_NAME.raw
     ```
 - Install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
+  - We recommend and tested using OpenMS version [3.4.0](https://abibuilder.cs.uni-tuebingen.de/archive/openms/OpenMSInstaller/release/3.4.0/)!
 - **Option A (recommended): Running via [uv](https://docs.astral.sh/uv/).**
   - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.:
     ```bash
@@ -84,6 +85,7 @@ You can find all scripts in the `/scripts` folder.
     ThermoRawFileParser.exe -i RAW_FILE_NAME.raw
     ```
 - Install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
+  - We recommend and tested using OpenMS version [3.4.0](https://abibuilder.cs.uni-tuebingen.de/archive/openms/OpenMSInstaller/release/3.4.0/)!
 - **Option A (recommended): Running via [uv](https://docs.astral.sh/uv/).**
   - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.:
     ```bash
@@ -143,6 +145,7 @@ You can find all scripts in the `/scripts` folder.
     ThermoRawFileParser.exe -i RAW_FILE_NAME.raw
     ```
 - Install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
+  - We recommend and tested using OpenMS version [3.4.0](https://abibuilder.cs.uni-tuebingen.de/archive/openms/OpenMSInstaller/release/3.4.0/)!
 - **Option A (recommended): Running via [uv](https://docs.astral.sh/uv/).**
   - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.:
     ```bash
@@ -194,6 +197,7 @@ You can find all scripts in the `/scripts` folder.
     ThermoRawFileParser.exe -i RAW_FILE_NAME.raw
     ```
 - Install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
+  - We recommend and tested using OpenMS version [3.4.0](https://abibuilder.cs.uni-tuebingen.de/archive/openms/OpenMSInstaller/release/3.4.0/)!
 - **Option A (recommended): Running via [uv](https://docs.astral.sh/uv/).**
   - [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if it's not already installed on your system, e.g.:
     ```bash
