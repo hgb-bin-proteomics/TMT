@@ -37,8 +37,8 @@ from gooey import Gooey
 from gooey import GooeyParser
 
 
-__version = "2.1.1"
-__date = "2025-11-20"
+__version = "2.1.2"
+__date = "2026-02-20"
 
 TMT_TOLERANCE = 0.0025
 TMT = {
@@ -433,7 +433,7 @@ def __get_consensusXML_map(
         desc="Reading consensusXML...",
     ):
         mz = __get_key(float(row["mz"]))
-        rt = __get_key(float(row["RT"]))
+        rt = __get_key(float(row["RT"])) if "RT" in row else __get_key(float(row["rt"]))
         if mz not in consensusXML_map:
             consensusXML_map[mz] = {rt: row}
         else:

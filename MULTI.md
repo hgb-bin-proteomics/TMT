@@ -6,6 +6,7 @@ install the requirements and follow the steps below.
 ## Requirements
 
 - Please install [OpenMS](https://openms.readthedocs.io/en/latest/about/installation.html).
+  - We recommend and tested using OpenMS version [3.4.0](https://abibuilder.cs.uni-tuebingen.de/archive/openms/OpenMSInstaller/release/3.4.0/)!
 - Please install either [python 3.12 or higher](https://www.python.org/downloads/)
   or [uv](https://docs.astral.sh/uv/).
 
