@@ -4,6 +4,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "pandas",
+#   "numpy",
 #   "tqdm",
 #   "pyteomics[XML]",
 #   "pyopenms",
@@ -19,6 +20,7 @@
 import os
 import warnings
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 from pyteomics import mzml
 
@@ -53,8 +55,8 @@ from tmt_chimerys import __convert
 
 SPECTRONAUT_SEP = ";"
 
-__version = "2.0.2"
-__date = "2025-11-25"
+__version = "2.0.3"
+__date = "2026-04-27"
 
 
 def __remove_ambiguous_pg(protein_table: pd.DataFrame) -> pd.DataFrame:
@@ -83,7 +85,6 @@ def __annotate_spectronaut_pgs(
         desc="Filtering precursors...",
     ):
         pg = str(psm["PG.ProteinGroups"]).strip()
-        purity = float(psm["Co-Isolation Purity"])
         eg_global_precursor_qvalue = float(psm["EG.GlobalPrecursorQvalue"])
         pg_qvalue = float(psm["PG.Qvalue"])
         eg_qvalue = float(psm["EG.Qvalue"])
@@ -97,14 +98,13 @@ def __annotate_spectronaut_pgs(
             continue
         if pd.isna(pg_qvalue_runwise) or pg_qvalue_runwise > q_value:
             continue
-        # remove PSMs below purity threshold
-        if pd.isna(purity) or purity < min_purity:
-            continue
         if pg in psms_by_proteins:
             psms_by_proteins[pg].append(psm)
         else:
             psms_by_proteins[pg] = [psm]
     channels = {key: [] for key in TMT.keys()}
+    mean_purities: List[float] = list()
+    median_purites: List[float] = list()
     for i, protein in tqdm(
         precursor_table.iterrows(),
         total=precursor_table.shape[0],
@@ -115,7 +115,14 @@ def __annotate_spectronaut_pgs(
         if pg in psms_by_proteins:
             psms_for_pg = psms_by_proteins[pg]
         tmt_quants = {key: 0.0 for key in TMT.keys()}
+        purities: List[float] = list()
         for psm in psms_for_pg:
+            purity = float(psm["Co-Isolation Purity"])
+            if pd.isna(purity):
+                continue
+            purities.append(purity)
+            if purity < min_purity:
+                continue
             if has_resolution:
                 for c in TMT.keys():
                     resgui_key = "RESGUI_" + c.split("-")[1] + " Resolution"
@@ -132,6 +139,12 @@ def __annotate_spectronaut_pgs(
                         ):
                             eligible_for_quant = False
                             break
+                        if (
+                            c in condition["reporters"]
+                            and psm[f"Condition_S_{condition['name']}"] < condition["s"]
+                        ):
+                            eligible_for_quant = False
+                            break
                     if not eligible_for_quant:
                         tmt_quants[c] += 0.0
                     else:
@@ -141,8 +154,12 @@ def __annotate_spectronaut_pgs(
                     tmt_quants[c] += psm[f"Annotated {c}"]
         for k, v in tmt_quants.items():
             channels[k].append(v)
+        mean_purities.append(float(np.mean(purities)))
+        median_purites.append(float(np.median(purities)))
     for key in channels.keys():
         precursor_table[f"Annotated protein-level {key}"] = channels[key]
+    precursor_table["Annotated mean purity"] = mean_purities
+    precursor_table["Annotated median purity"] = median_purites
     return precursor_table
 
 
