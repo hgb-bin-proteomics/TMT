@@ -11,7 +11,7 @@
 # ]
 # ///
 
-# DDA TMT QUANTIFICATION CHIMERYS [MULTI-FILE]
+# DIA TMT QUANTIFICATION SPECTRONAUT [MULTI-FILE]
 # 2025 (c) Micha Johannes Birklbauer
 # https://github.com/michabirklbauer/
 # micha.birklbauer@gmail.com
