@@ -4,6 +4,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "pandas",
+#   "numpy",
 #   "tqdm",
 #   "pyteomics[XML]",
 #   "pyopenms",

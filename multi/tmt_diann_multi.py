@@ -4,6 +4,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "pandas",
+#   "numpy",
 #   "pyarrow",
 #   "tqdm",
 #   "pyteomics[XML]",
