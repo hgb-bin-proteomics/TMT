@@ -4,6 +4,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "pandas",
+#   "numpy",
 #   "pyarrow",
 #   "tqdm",
 #   "pyteomics[XML]",
@@ -19,9 +20,11 @@
 
 import os
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 
 from typing import Optional
+from typing import List
 from typing import Dict
 from typing import Any
 
@@ -46,8 +49,8 @@ from tmt_chimerys import __convert
 from tmt_spectronaut import __read_spectra
 from tmt_spectronaut import __get_ms2_spectrum
 
-__version = "2.0.1"
-__date = "2025-11-19"
+__version = "2.0.2"
+__date = "2026-04-27"
 
 
 def __remove_ambiguous_pg(protein_table: pd.DataFrame) -> pd.DataFrame:
@@ -76,19 +79,17 @@ def __annotate_diann_pgs(
         desc="Filtering precursors...",
     ):
         pg = str(psm["Protein.Group"]).strip()
-        purity = float(psm["Co-Isolation Purity"])
         global_q_value = float(psm["Global.Q.Value"])
-        # remove PSMs below purity threshold
-        if pd.isna(purity) or purity < min_purity:
-            continue
         # remove PSMs above q-value
-        if pd.isna(global_q_value) or float(global_q_value) > q_value:
+        if pd.isna(global_q_value) or global_q_value > q_value:
             continue
         if pg in psms_by_proteins:
             psms_by_proteins[pg].append(psm)
         else:
             psms_by_proteins[pg] = [psm]
     channels = {key: [] for key in TMT.keys()}
+    mean_purities: List[float] = list()
+    median_purites: List[float] = list()
     for i, protein in tqdm(
         precursor_table.iterrows(),
         total=precursor_table.shape[0],
@@ -99,7 +100,14 @@ def __annotate_diann_pgs(
         if pg in psms_by_proteins:
             psms_for_pg = psms_by_proteins[pg]
         tmt_quants = {key: 0.0 for key in TMT.keys()}
+        purities: List[float] = list()
         for psm in psms_for_pg:
+            purity = float(psm["Co-Isolation Purity"])
+            if pd.isna(purity):
+                continue
+            purities.append(purity)
+            if purity < min_purity:
+                continue
             if has_resolution:
                 for c in TMT.keys():
                     resgui_key = "RESGUI_" + c.split("-")[1] + " Resolution"
@@ -116,6 +124,12 @@ def __annotate_diann_pgs(
                         ):
                             eligible_for_quant = False
                             break
+                        if (
+                            c in condition["reporters"]
+                            and psm[f"Condition_S_{condition['name']}"] < condition["s"]
+                        ):
+                            eligible_for_quant = False
+                            break
                     if not eligible_for_quant:
                         tmt_quants[c] += 0.0
                     else:
@@ -125,8 +139,12 @@ def __annotate_diann_pgs(
                     tmt_quants[c] += psm[f"Annotated {c}"]
         for k, v in tmt_quants.items():
             channels[k].append(v)
+        mean_purities.append(float(np.mean(purities)))
+        median_purites.append(float(np.median(purities)))
     for key in channels.keys():
         precursor_table[f"Annotated protein-level {key}"] = channels[key]
+    precursor_table["Annotated mean purity"] = mean_purities
+    precursor_table["Annotated median purity"] = median_purites
     return precursor_table
 
 
