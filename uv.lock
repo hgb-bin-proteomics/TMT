@@ -796,6 +796,7 @@ version = "2025.9.18"
 source = { virtual = "." }
 dependencies = [
     { name = "gooey" },
+    { name = "numpy" },
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "pyopenms" },
@@ -809,6 +810,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "gooey", specifier = ">=1.0.8.1" },
+    { name = "numpy", specifier = ">=2.3.4" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pyarrow", specifier = ">=22.0.0" },
     { name = "pyopenms", specifier = ">=3.4.0" },
