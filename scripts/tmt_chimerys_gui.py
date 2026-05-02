@@ -448,7 +448,7 @@ def __get_consensusXML_df(spectrum_filename: str) -> pd.DataFrame:
     consensus_features = oms.ConsensusMap()
     oms.ConsensusXMLFile().load(out_name, consensus_features)
     # see https://pyopenms.readthedocs.io/en/latest/user_guide/export_pandas_dataframe.html#consensusmap
-    return consensus_features.get_df()
+    return consensus_features.get_df()  # pyright: ignore[reportReturnType]
 
 
 def __get_consensusXML_map(
