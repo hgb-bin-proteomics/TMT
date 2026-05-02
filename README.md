@@ -117,6 +117,11 @@ cond2 = ["TMTpro-131N", "TMTpro-131C", "TMTpro-132N", "TMTpro-132C", "TMTpro-133
 # this should be sn_thresholds = map of thresholds for each condition
 # see example below
 sn_thresholds = { all = 0.0, cond1 = 10.0, cond2 = 10.0 }
+# please define the min abundance thresholds per condition that should be used for protein aggregation here
+# this should be s_thresholds = map of thresholds for each condition
+# see example below (in this case -> no abundance thresholds)
+# please not that the conditions have to be the same in sn_thresholds and s_thresholds
+s_thresholds = { all = 0.0, cond1 = 0.0, cond2 = 0.0 }
 ```
 
 > [!IMPORTANT]

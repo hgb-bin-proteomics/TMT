@@ -6,8 +6,10 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "gooey>=1.0.8.1",
-    "pandas>=2.3.3",
+    "numpy>=2.3.4",
+    "pandas<3",
     "pyarrow>=22.0.0",
+    "pyinstaller>=6.20.0",
     "pyopenms>=3.4.0",
     "pyright>=1.1.407",
     "pyteomics[xml]>=4.7.5",

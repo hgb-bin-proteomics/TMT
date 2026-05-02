@@ -4,6 +4,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "pandas",
+#   "numpy",
 #   "pyarrow",
 #   "tqdm",
 #   "pyteomics[XML]",
@@ -11,7 +12,7 @@
 # ]
 # ///
 
-# DDA TMT QUANTIFICATION CHIMERYS [MULTI-FILE]
+# DIA TMT QUANTIFICATION DIA-NN [MULTI-FILE]
 # 2025 (c) Micha Johannes Birklbauer
 # https://github.com/michabirklbauer/
 # micha.birklbauer@gmail.com

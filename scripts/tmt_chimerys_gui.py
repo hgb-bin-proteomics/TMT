@@ -4,6 +4,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "pandas",
+#   "numpy",
 #   "tqdm",
 #   "pyteomics[XML]",
 #   "pyopenms",
@@ -21,6 +22,7 @@ import tomllib
 import warnings
 import subprocess
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 from pyteomics import mzml
 import pyopenms as oms
@@ -37,8 +39,8 @@ from gooey import Gooey
 from gooey import GooeyParser
 
 
-__version = "2.1.2"
-__date = "2026-02-20"
+__version = "2.1.3"
+__date = "2026-04-27"
 
 TMT_TOLERANCE = 0.0025
 TMT = {
@@ -173,9 +175,9 @@ def __convert(filename: str) -> str:
     return new_filename
 
 
-def __get_sn_for_condition(row: pd.Series, reporters: List[str]) -> float:
+def __get_sn_for_condition(row: pd.Series, reporters: List[str]) -> Tuple[float, float]:
     total_signal = 0.0
-    total_noise = 0.0
+    total_noise = 0.0 + 1e-12  # added to avoid division by zero when there is no noise
     for reporter in reporters:
         reporter_signal = 0.0
         reporter_noise = 0.0
@@ -192,7 +194,7 @@ def __get_sn_for_condition(row: pd.Series, reporters: List[str]) -> float:
                 reporter_noise = float(row[f"RESGUI_{label} Noise"])
         total_signal += reporter_signal
         total_noise += reporter_noise
-    return total_signal / total_noise
+    return total_signal, total_noise
 
 
 def __annotate_result_conditions(
@@ -202,9 +204,17 @@ def __annotate_result_conditions(
     if not has_resolution:
         return psms
     for condition in conditions:
-        psms[f"Condition_SN_{condition['name']}"] = psms.apply(
-            lambda row: __get_sn_for_condition(row, condition["reporters"]), axis=1
-        )
+        S = list()
+        N = list()
+        SN = list()
+        for _i, row in psms.iterrows():
+            s, n = __get_sn_for_condition(row, condition["reporters"])
+            S.append(s)
+            N.append(n)
+            SN.append(s / n)
+        psms[f"Condition_S_{condition['name']}"] = S
+        psms[f"Condition_N_{condition['name']}"] = N
+        psms[f"Condition_SN_{condition['name']}"] = SN
     return psms
 
 
@@ -224,7 +234,6 @@ def __annotate_chimerys_protein_df(
     ):
         chimerys_coefficient = float(psm["Normalized CHIMERYS Coefficient"])
         avg_reporter_sn = float(psm["Average Reporter S/N"])
-        purity = float(psm["Co-Isolation Purity"])
         proteins = [
             protein.strip() for protein in str(psm["Protein Accessions"]).split(";")
         ]
@@ -241,14 +250,13 @@ def __annotate_chimerys_protein_df(
         # remove PSMs with too low average reporter S/N
         if pd.isna(avg_reporter_sn) or avg_reporter_sn < min_avg_reporter_sn:
             continue
-        # remove PSMs below purity threshold
-        if pd.isna(purity) or purity < min_purity:
-            continue
         if protein in psms_by_proteins:
             psms_by_proteins[protein].append(psm)
         else:
             psms_by_proteins[protein] = [psm]
     channels = {key: [] for key in TMT.keys()}
+    mean_purities: List[float] = list()
+    median_purites: List[float] = list()
     for i, protein in tqdm(
         protein_table.iterrows(),
         total=protein_table.shape[0],
@@ -268,7 +276,14 @@ def __annotate_chimerys_protein_df(
         #         f"Info: No PSMs for accession {accession} found due to filter criteria!"
         #     )
         tmt_quants = {key: 0.0 for key in TMT.keys()}
+        purities: List[float] = list()
         for psm in psms_for_accession:
+            purity = float(psm["Co-Isolation Purity"])
+            if pd.isna(purity):
+                continue
+            purities.append(purity)
+            if purity < min_purity:
+                continue
             if has_resolution:
                 for c in TMT.keys():
                     resgui_key = "RESGUI_" + c.split("-")[1] + " Resolution"
@@ -285,6 +300,12 @@ def __annotate_chimerys_protein_df(
                         ):
                             eligible_for_quant = False
                             break
+                        if (
+                            c in condition["reporters"]
+                            and psm[f"Condition_S_{condition['name']}"] < condition["s"]
+                        ):
+                            eligible_for_quant = False
+                            break
                     if not eligible_for_quant:
                         tmt_quants[c] += 0.0
                     else:
@@ -294,8 +315,12 @@ def __annotate_chimerys_protein_df(
                     tmt_quants[c] += psm[f"Annotated {c}"]
         for k, v in tmt_quants.items():
             channels[k].append(v)
+        mean_purities.append(float(np.mean(purities)))
+        median_purites.append(float(np.median(purities)))
     for key in channels.keys():
         protein_table[f"Annotated protein-level {key}"] = channels[key]
+    protein_table["Annotated mean purity"] = mean_purities
+    protein_table["Annotated median purity"] = median_purites
     return protein_table
 
 
@@ -354,6 +379,8 @@ def __get_conditions(toml_conditions: Dict[str, Any]) -> List[Dict[str, Any]]:
     for cond in toml_conditions["sn_thresholds"]:
         if cond not in toml_conditions:
             raise KeyError(f"Did not find condition {cond} in CONDITIONS!")
+        if cond not in toml_conditions["s_thresholds"]:
+            raise KeyError(f"Did not finde condition {cond} in s_thresholds!")
         condition = {
             "name": cond,
             "reporters": [
@@ -362,6 +389,7 @@ def __get_conditions(toml_conditions: Dict[str, Any]) -> List[Dict[str, Any]]:
                 if __check_valid_reporter(reporter)
             ],
             "sn": float(toml_conditions["sn_thresholds"][cond]),
+            "s": float(toml_conditions["s_thresholds"][cond]),
         }
         conditions.append(condition)
     return conditions
@@ -420,7 +448,7 @@ def __get_consensusXML_df(spectrum_filename: str) -> pd.DataFrame:
     consensus_features = oms.ConsensusMap()
     oms.ConsensusXMLFile().load(out_name, consensus_features)
     # see https://pyopenms.readthedocs.io/en/latest/user_guide/export_pandas_dataframe.html#consensusmap
-    return consensus_features.get_df()
+    return consensus_features.get_df()  # pyright: ignore[reportReturnType]
 
 
 def __get_consensusXML_map(

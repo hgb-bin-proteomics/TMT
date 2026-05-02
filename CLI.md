@@ -134,7 +134,8 @@ You can find all scripts in the `/scripts` folder.
 
 ## Spectronaut
 
-- Export matched precursors/the main report from Spectronaut in comma-separated `.csv` format.
+- Export matched precursors/the main report from Spectronaut in **semicolon-separated** `.csv` format.
+  - If your result file is comma-separated you need to change to `SPECTRONAUT_SEP = ","` in `tmt_spectronaut.py`.
 - Set you desired parameters in `config.toml`.
 - The scripts support both `.raw` files and `.mzML` files as input, `.raw` files will be automatically
   converted to `.mzML` when the scripts are run.
